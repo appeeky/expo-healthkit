@@ -1,3 +1,10 @@
+## [0.1.1](https://github.com/appeeky/expo-healthkit/compare/v0.1.0...v0.1.1) (2026-09-05)
+
+
+### Bug Fixes
+
+* use local datetime for Health Connect daily statistics ([d01e776](https://github.com/appeeky/expo-healthkit/commit/d01e776398fb7f45b2b4c0401593a871f03bb700))
+
 # Changelog
 
 ## 0.1.0

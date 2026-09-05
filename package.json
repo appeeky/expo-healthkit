@@ -1,6 +1,6 @@
 {
   "name": "@appeeky/expo-healthkit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Apple HealthKit and Android Health Connect for Expo. One identifier-based JavaScript API on iOS and Android.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
