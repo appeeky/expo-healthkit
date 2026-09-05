@@ -32,7 +32,8 @@ jobs:
           grep -qx 'package/ios/PrivacyInfo.xcprivacy' packed.txt
           grep -qx 'package/android/build.gradle' packed.txt
           grep -qx 'package/LICENSE' packed.txt
-          if grep -E 'package/(example|internal|src/__tests__|docs)/' packed.txt; then
+          grep -qx 'package/docs/banner.jpg' packed.txt
+          if grep -E 'package/(example|internal|src/__tests__)/' packed.txt; then
             echo 'Tarball contains files that must stay off npm' >&2
             exit 1
           fi

@@ -22,5 +22,5 @@
 - Published as [`@appeeky/expo-healthkit`](https://www.npmjs.com/package/@appeeky/expo-healthkit)
 - npm-ready `exports`, `.npmignore`, and `prepublishOnly` build
 - App Store privacy manifest (`PrivacyInfo.xcprivacy`)
-- GitHub Actions for lint, typecheck, tests with coverage thresholds, and pack contents
+- GitHub Actions for lint, typecheck, tests with coverage thresholds, pack contents, and automated semver releases to npm
 - [PolyForm Shield 1.0.0](./LICENSE) (source-available; apps may use the SDK, competing SDKs may not)

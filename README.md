@@ -396,6 +396,21 @@ Copy [`.cursor/skills/expo-healthkit/`](https://github.com/appeeky/expo-healthki
 
 The skill tells the agent to pass Apple identifier strings through one query/save API on iOS and Android, request every type in `toRead`, and rebuild native code after Swift, Kotlin, or plugin changes.
 
+## 🚀 Releases
+
+Versions follow [semver](https://semver.org/). Pushing to `main` with a [Conventional Commit](https://www.conventionalcommits.org/) runs `.github/workflows/release.yml`: bump `package.json`, update `CHANGELOG.md`, GitHub Release, and `npm publish`.
+
+| Commit | npm bump |
+| --- | --- |
+| `fix: …` | patch (`0.1.0` → `0.1.1`) |
+| `feat: …` | minor (`0.1.0` → `0.2.0`) |
+| `feat!: …` or `BREAKING CHANGE:` in the body | major (`0.1.0` → `1.0.0`) |
+| `docs:`, `chore:`, `ci:`, `test:` | no release |
+
+Squash-merge PRs so the merge commit (or PR title) starts with `fix:` / `feat:`. `chore:` and `ci:` do not publish.
+
+npm publishes from GitHub Actions via [trusted publishing](https://docs.npmjs.com/trusted-publishers) (no `NPM_TOKEN`). One-time setup: package Settings → Trusted Publisher → GitHub Actions, repository `appeeky/expo-healthkit`, workflow filename `release.yml`, and allow **`npm publish`** (not only staged publish).
+
 ## 🤝 Contributing
 
 Issues and pull requests are welcome. Contributions are licensed under [PolyForm Shield 1.0.0](./LICENSE).
@@ -439,7 +454,7 @@ npx expo run:android
 
 ### Docs
 
-If the public API or Android mapping changes, update `README.md`, `CHANGELOG.md`, and `.cursor/skills/expo-healthkit/` (`SKILL.md`, `reference.md`, `examples.md`) in the same PR.
+If the public API or Android mapping changes, update `README.md` and `.cursor/skills/expo-healthkit/` (`SKILL.md`, `reference.md`, `examples.md`) in the same PR. `CHANGELOG.md` is generated on release from conventional commits.
 
 ## 🔒 Privacy
 
