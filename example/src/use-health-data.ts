@@ -170,8 +170,19 @@ function healthKitMessage(error: unknown): string {
   return String(error);
 }
 
+function errorCode(error: unknown): string | null {
+  if (error && typeof error === 'object' && 'code' in error && error.code != null) {
+    return String(error.code);
+  }
+  return null;
+}
+
 function recover<T>(fallback: T, label: string, warnings: string[]) {
   return (error: unknown): T => {
+    const code = errorCode(error);
+    if (code === 'ERR_HEALTH_CONNECT_UNSUPPORTED') {
+      return fallback;
+    }
     const message = `${label}: ${healthKitMessage(error)}`;
     warnings.push(message);
     console.warn(`[expo-healthkit] ${message}`);

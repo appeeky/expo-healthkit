@@ -47,6 +47,7 @@ import androidx.health.connect.client.units.Temperature
 import androidx.health.connect.client.units.Volume
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.Period
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -126,7 +127,7 @@ internal class HealthConnectService(
         val samples = sessions.flatMap { session -> sleepSamples(session) }
         applyLimit(if (ascending) samples else samples.reversed(), limit)
       }
-      else -> throw InvalidIdentifierException(type)
+      else -> throw HealthConnectUnsupportedException(type)
     }
   }
 
@@ -205,7 +206,7 @@ internal class HealthConnectService(
           correlation(record.metadata, type, record.startTime, record.endTime, objects)
         }
       }
-      else -> throw InvalidIdentifierException(type)
+      else -> unmappedType(type)
     }
   }
 
@@ -255,7 +256,7 @@ internal class HealthConnectService(
         else -> Period.ofDays(1)
       }
       client().aggregateGroupByPeriod(
-        AggregateGroupByPeriodRequest(metrics, filter, period)
+        AggregateGroupByPeriodRequest(metrics, localTimeFilter(options), period)
       ).map { result ->
         val start = result.startTime.atZone(ZoneId.systemDefault()).toInstant()
         val end = result.endTime.atZone(ZoneId.systemDefault()).toInstant()
@@ -268,7 +269,7 @@ internal class HealthConnectService(
     assertAvailable()
     val type = requiredString(options, "type")
     val unit = options["unit"] as? String ?: ""
-    val recordClass = HealthConnectMapping.recordClass(type) ?: throw InvalidIdentifierException(type)
+    val recordClass = HealthConnectMapping.recordClass(type) ?: unmappedType(type)
     val anchor = options["anchor"] as? String
     val client = client()
     if (anchor.isNullOrBlank()) {
@@ -433,7 +434,7 @@ internal class HealthConnectService(
         val range = ensureRange(start, end)
         HealthConnectNutrition.build(range.first, range.second, zoneOffset(range.first), zoneOffset(range.second), metadata(), values)
       }
-      else -> throw InvalidIdentifierException(type)
+      else -> unmappedType(type)
     }
     return client().insertRecords(listOf(record)).recordIdsList.first()
   }
@@ -441,7 +442,7 @@ internal class HealthConnectService(
   suspend fun deleteObjects(options: Map<String, Any?>): Int {
     assertAvailable()
     val type = options["type"] as? String ?: throw MissingDeleteTypeException()
-    val recordClass = HealthConnectMapping.recordClass(type) ?: throw InvalidIdentifierException(type)
+    val recordClass = HealthConnectMapping.recordClass(type) ?: unmappedType(type)
     val uuid = options["uuid"] as? String
     val client = client()
     if (!uuid.isNullOrBlank()) {
@@ -485,7 +486,7 @@ internal class HealthConnectService(
       }
       HealthConnectMapping.BASAL_ENERGY -> emptyList()
       else -> {
-        val recordClass = HealthConnectMapping.recordClass(type) ?: throw InvalidIdentifierException(type)
+        val recordClass = HealthConnectMapping.recordClass(type) ?: unmappedType(type)
         readAll(recordClass, filter, ascending, 0).flatMap { record ->
           quantitySamplesFromRecord(type, unit, record)
         }
@@ -1002,6 +1003,19 @@ internal class HealthConnectService(
     }
   }
 
+  private fun localTimeFilter(options: Map<String, Any?>): TimeRangeFilter {
+    val zone = ZoneId.systemDefault()
+    val from = (options["from"] as? String)?.let { parseInstant(it).atZone(zone).toLocalDateTime() }
+    val to = (options["to"] as? String)?.let { parseInstant(it).atZone(zone).toLocalDateTime() }
+    return when {
+      from != null && to != null ->
+        TimeRangeFilter.between(from, if (to.isAfter(from)) to else from.plusSeconds(1))
+      from != null -> TimeRangeFilter.after(from)
+      to != null -> TimeRangeFilter.before(to)
+      else -> TimeRangeFilter.after(LocalDateTime.ofInstant(Instant.EPOCH, zone))
+    }
+  }
+
   private fun filterStart(options: Map<String, Any?>): Instant =
     (options["from"] as? String)?.let { parseInstant(it) } ?: Instant.EPOCH
 
@@ -1024,6 +1038,13 @@ internal class HealthConnectService(
       return start to start.plusSeconds(1)
     }
     return start to end
+  }
+
+  private fun unmappedType(type: String): Nothing {
+    if (type.startsWith("HK")) {
+      throw HealthConnectUnsupportedException(type)
+    }
+    throw InvalidIdentifierException(type)
   }
 
   private fun requiredString(options: Map<String, Any?>, key: String): String =
