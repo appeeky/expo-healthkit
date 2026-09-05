@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:coverage
+      - name: Verify npm pack contents
+        run: |
+          set -euo pipefail
+          tarball="$(npm pack --ignore-scripts --loglevel=error)"
+          tar -tzf "$tarball" | sort > packed.txt
+          grep -qx 'package/build/index.js' packed.txt
+          grep -qx 'package/build/index.d.ts' packed.txt
+          grep -qx 'package/plugin/build/index.js' packed.txt
+          grep -qx 'package/app.plugin.js' packed.txt
+          grep -qx 'package/expo-module.config.json' packed.txt
+          grep -qx 'package/ios/ExpoHealthKit.podspec' packed.txt
+          grep -qx 'package/ios/PrivacyInfo.xcprivacy' packed.txt
+          grep -qx 'package/android/build.gradle' packed.txt
+          grep -qx 'package/LICENSE' packed.txt
+          if grep -E 'package/(example|internal|src/__tests__|docs)/' packed.txt; then
+            echo 'Tarball contains files that must stay off npm' >&2
+            exit 1
+          fi
+          rm -f "$tarball" packed.txt

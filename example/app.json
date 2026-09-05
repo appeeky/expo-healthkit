@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "expo-healthkit-example",
+    "slug": "expo-healthkit-example",
+    "scheme": "expo-healthkit-example",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      [
+        "@appeeky/expo-healthkit",
+        {
+          "healthSharePermission": "Allow the expo-healthkit example to read your health data.",
+          "healthUpdatePermission": "Allow the expo-healthkit example to write health data.",
+          "isBackgroundDeliveryEnabled": true
+        }
+      ],
+      "expo-image"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "dev.expo.healthkit.example",
+      "appleTeamId": "ZF9P9LGM63",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "dev.expo.healthkit.example",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    }
+  }
+}

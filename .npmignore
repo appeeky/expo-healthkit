@@ -1,0 +1,28 @@
+# If this file exists, npm pack does not use .gitignore.
+# Keep compiled JS (`build/`, `plugin/build/`) in the tarball.
+
+/.*/
+/*.tgz
+
+__mocks__
+__tests__
+*.tsbuildinfo
+
+/example
+/docs/*
+!/docs/banner.jpg
+/internal
+/coverage
+/babel.config.js
+/eslint.config.cjs
+/.prettierrc
+/tsconfig.json
+/plugin/src
+/plugin/tsconfig.json
+
+/android/src/androidTest/
+/android/src/test/
+/android/build/
+/android/.gradle
+/android/.cxx
+/ios/Tests
