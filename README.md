@@ -1,4 +1,5 @@
-![HealthKit and Health Connect for Expo](https://raw.githubusercontent.com/appeeky/expo-healthkit/main/docs/banner.jpg)
+<img width="1024" height="725" alt="image" src="https://github.com/user-attachments/assets/fadcd831-4187-42b1-b03b-3228ab2d8f32" />
+
 
 # @appeeky/expo-healthkit
 
