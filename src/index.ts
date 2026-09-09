@@ -1,4 +1,4 @@
-import { useEvent } from 'expo';
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
 import ExpoHealthKitModule from './ExpoHealthKitModule';
@@ -47,8 +47,11 @@ import type {
   ActivitySummaryQueryOptions,
   AudiogramSample,
   DateRangeQueryOptions,
+  HealthUpdateEvent,
+  HealthUpdateListener,
   HeartbeatSeriesQueryOptions,
   HeartbeatSeriesSample,
+  NativeHealthUpdateEvent,
   QuantityQueryOptions,
   QuantitySample,
   SampleQueryOptions,
@@ -492,12 +495,75 @@ export async function clearObservers(): Promise<void> {
   await ExpoHealthKitModule.clearObserverQueries();
 }
 
-export function addUpdateListener(listener: (event: { type: string }) => void): { remove(): void } {
-  return ExpoHealthKitModule.addListener('onUpdate', listener);
+/**
+ * Types currently registered with `observe`. Persisted natively on iOS, so it
+ * reflects observers re-registered at cold launch too.
+ */
+export async function getObservedTypes(): Promise<string[]> {
+  if (!isAvailable()) return [];
+  return ExpoHealthKitModule.getObservedTypes();
 }
 
-export function useHealthKitUpdates() {
-  return useEvent(ExpoHealthKitModule, 'onUpdate');
+const updateListeners = new Set<HealthUpdateListener>();
+let nativeUpdateSubscription: { remove(): void } | null = null;
+
+function runListener(listener: HealthUpdateListener, event: HealthUpdateEvent): Promise<void> {
+  try {
+    return Promise.resolve(listener(event));
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+function handleNativeUpdate(nativeEvent: NativeHealthUpdateEvent): void {
+  const { token, type } = nativeEvent;
+  const event: HealthUpdateEvent = { type };
+  const results = [...updateListeners].map((listener) => runListener(listener, event));
+
+  Promise.allSettled(results).then((settled) => {
+    if (__DEV__) {
+      for (const result of settled) {
+        if (result.status === 'rejected') {
+          console.warn('[expo-healthkit] update listener threw', result.reason);
+        }
+      }
+    }
+    if (token) {
+      ExpoHealthKitModule.completeUpdate(token).catch(() => {});
+    }
+  });
+}
+
+/**
+ * Subscribe to observer / background-delivery updates. Return a promise from the
+ * listener to hold the iOS completion handler until your async work is done.
+ */
+export function addUpdateListener(listener: HealthUpdateListener): { remove(): void } {
+  updateListeners.add(listener);
+  if (!nativeUpdateSubscription) {
+    nativeUpdateSubscription = ExpoHealthKitModule.addListener('onUpdate', handleNativeUpdate);
+  }
+
+  return {
+    remove() {
+      updateListeners.delete(listener);
+      if (updateListeners.size === 0 && nativeUpdateSubscription) {
+        nativeUpdateSubscription.remove();
+        nativeUpdateSubscription = null;
+      }
+    },
+  };
+}
+
+export function useHealthKitUpdates(): HealthUpdateEvent | null {
+  const [event, setEvent] = useState<HealthUpdateEvent | null>(null);
+
+  useEffect(() => {
+    const subscription = addUpdateListener((next) => setEvent(next));
+    return () => subscription.remove();
+  }, []);
+
+  return event;
 }
 
 const HealthKit = {
@@ -533,6 +599,7 @@ const HealthKit = {
   disableAllBackgroundDelivery,
   observe,
   clearObservers,
+  getObservedTypes,
   addUpdateListener,
   useHealthKitUpdates,
   QuantityType,

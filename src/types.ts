@@ -320,8 +320,20 @@ export interface HealthUpdateEvent {
   type: string;
 }
 
+/**
+ * Return a promise to keep the app alive (and the HealthKit completion handler
+ * pending) until your async work finishes. Resolves are awaited across all
+ * listeners; native times out after ~25s regardless.
+ */
+export type HealthUpdateListener = (event: HealthUpdateEvent) => void | Promise<void>;
+
+export interface NativeHealthUpdateEvent extends HealthUpdateEvent {
+  /** Present on iOS. Passed back via `completeUpdate` once listeners finish. */
+  token?: string;
+}
+
 export type ExpoHealthKitModuleEvents = {
-  onUpdate: (event: HealthUpdateEvent) => void;
+  onUpdate: (event: NativeHealthUpdateEvent) => void;
 };
 
 export interface NativeAuthorizationOptions {

@@ -1,7 +1,6 @@
 import { NativeModule, requireNativeModule } from 'expo';
 
 import { HealthKitError } from './errors';
-
 import type {
   ExpoHealthKitModuleEvents,
   NativeActivitySummary,
@@ -78,6 +77,8 @@ declare class ExpoHealthKitModule extends NativeModule<ExpoHealthKitModuleEvents
   disableAllBackgroundDelivery(): Promise<boolean>;
   observeTypes(types: string[]): Promise<void>;
   clearObserverQueries(): Promise<void>;
+  getObservedTypes(): Promise<string[]>;
+  completeUpdate(token: string): Promise<void>;
 }
 
 const nativeModule = requireNativeModule<ExpoHealthKitModule>('ExpoHealthKit');

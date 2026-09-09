@@ -1,8 +1,10 @@
+import { router } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 
 import { CollapsingHeader, useCollapsingScroll, useSafeScrollPadding } from '@/src/collapsing-header';
 import { HealthScreen } from '@/src/health-hero-gradient';
 import { MetricCard } from '@/src/metric-card';
+import { metricDetailConfig } from '@/src/metric-detail';
 import { colors } from '@/src/theme/colors';
 import { isTodayMetric, useHealthSnapshot } from '@/src/use-health-data';
 
@@ -34,7 +36,11 @@ export default function AllDataScreen() {
           <View style={{ gap: 12 }}>
             <Text style={{ fontSize: 22, fontWeight: '700', color: colors.label }}>Today</Text>
             {today.map(({ key, ...metric }) => (
-              <MetricCard key={key} {...metric} />
+              <MetricCard
+                key={key}
+                {...metric}
+                onPress={metricDetailConfig(key) ? () => router.push({ pathname: "/(tabs)/(summary)/detail/[key]", params: { key } }) : undefined}
+              />
             ))}
           </View>
         ) : null}
@@ -42,7 +48,11 @@ export default function AllDataScreen() {
           <View style={{ gap: 12 }}>
             <Text style={{ fontSize: 22, fontWeight: '700', color: colors.label }}>Older</Text>
             {older.map(({ key, ...metric }) => (
-              <MetricCard key={key} {...metric} />
+              <MetricCard
+                key={key}
+                {...metric}
+                onPress={metricDetailConfig(key) ? () => router.push({ pathname: "/(tabs)/(summary)/detail/[key]", params: { key } }) : undefined}
+              />
             ))}
           </View>
         ) : null}

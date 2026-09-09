@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import type { ColorValue } from 'react-native';
 
 import { SymbolIcon } from '@/src/symbol-icon';
@@ -15,6 +15,7 @@ interface MetricCardProps {
   subtitle?: string;
   subtitleTint?: ColorValue;
   chart?: number[];
+  onPress?: () => void;
 }
 
 function formatMeta(date: Date | null): string | null {
@@ -39,6 +40,7 @@ export function MetricCard({
   subtitle,
   subtitleTint,
   chart,
+  onPress,
 }: MetricCardProps) {
   const maxChart = Math.max(1, ...(chart ?? [0]));
   const hasValue = value != null && displayValue != null;
@@ -46,8 +48,10 @@ export function MetricCard({
   const meta = formatMeta(date);
 
   return (
-    <View
-      style={{
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => ({
         backgroundColor: colors.systemBackground,
         borderRadius: 24,
         borderCurve: 'continuous',
@@ -56,7 +60,8 @@ export function MetricCard({
         paddingBottom: 18,
         minHeight: 118,
         gap: 10,
-      }}
+        opacity: pressed ? 0.7 : 1,
+      })}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1, paddingRight: 12 }}>
@@ -138,6 +143,6 @@ export function MetricCard({
           </View>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }

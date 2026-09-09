@@ -169,6 +169,14 @@ class ExpoHealthKitModule : Module() {
     AsyncFunction("clearObserverQueries") {
       Unit
     }
+
+    AsyncFunction("getObservedTypes") {
+      emptyList<String>()
+    }
+
+    AsyncFunction("completeUpdate") { _: String ->
+      Unit
+    }
   }
 
   private suspend fun requestHealthPermissions(permissions: Set<String>): Set<String> {

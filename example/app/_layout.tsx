@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, DefaultTheme } from 'expo-router';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 
+import '@/src/background-sync';
 import { PermissionProvider } from '@/src/permission-context';
 
 export const unstable_settings = {

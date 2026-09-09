@@ -245,13 +245,16 @@ anchor = page.anchor;
 ```ts
 await HealthKit.observe([HealthKit.QuantityType.stepCount]);
 
-const subscription = HealthKit.addUpdateListener(({ type }) => {
-  void HealthKit.queryStatistics({
+// Register at module scope so it exists when iOS cold-launches the app in background.
+const subscription = HealthKit.addUpdateListener(async ({ type }) => {
+  // Returning a promise keeps the app alive until this settles (~25s cap).
+  const stats = await HealthKit.queryStatistics({
     type,
     unit: HealthKit.Unit.count,
     from: startOfDay(),
     options: HealthKit.StatisticsOption.cumulativeSum,
   });
+  await uploadToBackend(stats);
 });
 
 await HealthKit.enableBackgroundDelivery(

@@ -108,16 +108,19 @@ Include the matching `CharacteristicType` in `toRead`. Enums: `BiologicalSex`, `
 ## Observers
 
 ```ts
-observe(types: readonly string[]): Promise<void>
+observe(types: readonly string[]): Promise<void>            // persisted; re-registered at cold launch (iOS)
 clearObservers(): Promise<void>
-addUpdateListener(listener: (event: { type: string }) => void): { remove(): void }
-useHealthKitUpdates()
+getObservedTypes(): Promise<string[]>
+addUpdateListener(listener: (event: { type: string }) => void | Promise<void>): { remove(): void }
+useHealthKitUpdates(): { type: string } | null
 enableBackgroundDelivery(type, frequency): Promise<boolean>
 disableBackgroundDelivery(type): Promise<boolean>
 disableAllBackgroundDelivery(): Promise<boolean>
 ```
 
 `UpdateFrequency`: `immediate` 1, `hourly` 2, `daily` 3, `weekly` 4.
+
+Return a promise from the listener to hold the HealthKit completion handler (and a background task) until async work finishes; native times out at ~25s. Deliveries that arrive before JS subscribes are queued and flushed on the first `addUpdateListener`.
 
 ## Identifier groups
 

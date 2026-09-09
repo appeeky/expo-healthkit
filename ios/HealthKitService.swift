@@ -2,9 +2,6 @@ import HealthKit
 
 internal final class HealthKitService {
   let store = HKHealthStore()
-  var onUpdate: ((String) -> Void)?
-
-  private var observerQueries: [String: HKObserverQuery] = [:]
 
   func executeQuery(_ query: HKQuery) throws {
     try catchingHealthKit {
@@ -430,31 +427,6 @@ internal final class HealthKitService {
         }
       }
     }
-  }
-
-  func startObserving(_ identifiers: [String]) throws {
-    try ensureAvailable()
-    stopObserving()
-
-    for identifier in identifiers {
-      let sampleType = try HealthKitIdentifiers.sampleType(for: identifier)
-      let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] _, completionHandler, error in
-        defer { completionHandler() }
-        guard error == nil else {
-          return
-        }
-        self?.onUpdate?(identifier)
-      }
-      observerQueries[identifier] = query
-      try executeQuery(query)
-    }
-  }
-
-  func stopObserving() {
-    for query in observerQueries.values {
-      store.stop(query)
-    }
-    observerQueries.removeAll()
   }
 
   func ensureAvailable() throws {

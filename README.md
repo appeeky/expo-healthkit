@@ -252,8 +252,10 @@ await HealthKit.deleteObjects({
 ```ts
 await HealthKit.observe([HealthKit.QuantityType.stepCount]);
 
-const subscription = HealthKit.addUpdateListener(({ type }) => {
-  // Re-query that type
+const subscription = HealthKit.addUpdateListener(async ({ type }) => {
+  // Re-query that type. Return a promise: iOS keeps the app alive and holds
+  // the HealthKit completion handler until it settles (~25s cap).
+  await syncSteps();
 });
 
 await HealthKit.enableBackgroundDelivery(
@@ -265,6 +267,12 @@ await HealthKit.enableBackgroundDelivery(
 `useHealthKitUpdates()` is a React hook around the same event.
 
 Background delivery needs `isBackgroundDeliveryEnabled: true` on the config plugin and the HealthKit background mode.
+
+**Killed-app relaunch.** Types passed to `observe` are persisted natively. When iOS relaunches the app in the background for a HealthKit delivery, the observer queries are re-registered in `didFinishLaunching` (via an Expo AppDelegate subscriber), before the JS runtime boots. The delivery is queued until JS calls `addUpdateListener`, then dispatched. Register your listener at module scope (or early in the root component) so it exists on cold start; `getObservedTypes()` tells you what is already being observed. `clearObservers()` stops and forgets them.
+
+**Apple limits.** Step count, distance, energy, exercise/stand time and similar activity types are delivered at most **once per hour** regardless of `UpdateFrequency`; heart rate, sleep, workouts and body measurements are not capped. Each delivery gets ~30 s of background time; the library completes at 25 s if your listener hasn't. The Simulator never relaunches a killed app for HealthKit — test on a device.
+
+**Debugging.** Native logs are under the `expo-healthkit` `os_log` subsystem (`restore`, `delivery`, `complete reason=js|timeout`). Full guide with a device test recipe: [`.cursor/skills/expo-healthkit/background-delivery.md`](.cursor/skills/expo-healthkit/background-delivery.md).
 
 ## 🏷️ Identifiers
 
@@ -335,7 +343,7 @@ These throw `ERR_HEALTH_CONNECT_UNSUPPORTED` on Android. Health Connect has no e
 | `queryWorkoutRoute` | Workout GPS polylines |
 | `queryHeartbeatSeries` | Beat-to-beat series |
 | `getBiologicalSex`, `getBloodType`, `getDateOfBirth`, `getFitzpatrickSkinType`, `getWheelchairUse` | HealthKit characteristics |
-| `observe`, `enableBackgroundDelivery` | HealthKit observer queries / background delivery |
+| `observe`, `getObservedTypes`, `enableBackgroundDelivery` | HealthKit observer queries / background delivery |
 
 ### Behavioral differences
 

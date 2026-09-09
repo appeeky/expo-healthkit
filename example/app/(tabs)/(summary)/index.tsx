@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { CollapsingHeader, useCollapsingScroll, useSafeScrollPadding } from '@/src/collapsing-header';
 import { HealthScreen } from '@/src/health-hero-gradient';
 import { MetricCard } from '@/src/metric-card';
+import { metricDetailConfig } from '@/src/metric-detail';
 import { ProfileAvatar } from '@/src/profile-avatar';
 import { requestHealthAccess } from '@/src/health';
 import { usePermissionSheet } from '@/src/permission-context';
@@ -61,7 +62,11 @@ export default function SummaryScreen() {
         </View>
 
         {metrics.map(({ key, ...metric }) => (
-          <MetricCard key={key} {...metric} />
+          <MetricCard
+            key={key}
+            {...metric}
+            onPress={metricDetailConfig(key) ? () => router.push({ pathname: "/(tabs)/(summary)/detail/[key]", params: { key } }) : undefined}
+          />
         ))}
 
         <Pressable

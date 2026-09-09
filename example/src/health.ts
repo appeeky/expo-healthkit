@@ -39,6 +39,12 @@ export function startOfToday(): Date {
   return date;
 }
 
+export function startOfTomorrow(): Date {
+  const date = startOfToday();
+  date.setDate(date.getDate() + 1);
+  return date;
+}
+
 export function daysAgo(count: number): Date {
   const date = startOfToday();
   date.setDate(date.getDate() - count);

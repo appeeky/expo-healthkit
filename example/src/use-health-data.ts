@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import type { ColorValue } from 'react-native';
+import { AppState, type ColorValue } from 'react-native';
 import * as HealthKit from '@appeeky/expo-healthkit';
 
-import { daysAgo, startOfToday } from '@/src/health';
+import { daysAgo, startOfToday, startOfTomorrow } from '@/src/health';
 import { usePermissionSheet } from '@/src/permission-context';
 import { colors } from '@/src/theme/colors';
 
@@ -35,7 +35,7 @@ const ASLEEP_VALUES = new Set<number>([
 
 const HEADPHONE_OK_DB = 80;
 
-function usesMetricUnits(): boolean {
+export function usesMetricUnits(): boolean {
   const locale = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase();
   return !locale.startsWith('en-us');
 }
@@ -96,7 +96,7 @@ async function cumulativeToday(type: string, unit: string): Promise<{ value: num
       type,
       unit,
       from: startOfToday(),
-      to: new Date(),
+      to: startOfTomorrow(),
       options: HealthKit.StatisticsOption.cumulativeSum,
     });
     return { value: stats.sum ?? 0, date: stats.endDate ?? new Date() };
@@ -248,13 +248,13 @@ export function useHealthSnapshot() {
             }).catch(recover([], 'Sleep', warnings)),
             HealthKit.queryWorkouts({
               from: startOfToday(),
-              to: new Date(),
+              to: startOfTomorrow(),
             }).catch(recover([], 'Workouts', warnings)),
             HealthKit.queryStatisticsCollection({
               type: HealthKit.QuantityType.stepCount,
               unit: HealthKit.Unit.count,
               from: daysAgo(6),
-              to: new Date(),
+              to: startOfTomorrow(),
               interval: { day: 1 },
               options: HealthKit.StatisticsOption.cumulativeSum,
             }).catch(recover([], 'Steps chart', warnings)),
@@ -274,7 +274,7 @@ export function useHealthSnapshot() {
             }).catch(recover([], 'Headphone events', warnings)),
             HealthKit.queryActivitySummaries({
               from: startOfToday(),
-              to: new Date(),
+              to: startOfTomorrow(),
             }).catch(recover([], 'Activity rings', warnings)),
           ]);
 
@@ -455,8 +455,14 @@ export function useHealthSnapshot() {
       }
 
       void load();
+      const sub = AppState.addEventListener('change', (state) => {
+        if (state === 'active') {
+          void load();
+        }
+      });
       return () => {
         cancelled = true;
+        sub.remove();
       };
     }, [authRevision])
   );

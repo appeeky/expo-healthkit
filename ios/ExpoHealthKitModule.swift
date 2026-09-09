@@ -9,15 +9,13 @@ public class ExpoHealthKitModule: Module {
     Events("onUpdate")
 
     OnCreate {
-      self.service.onUpdate = { type in
-        self.sendEvent("onUpdate", [
-          "type": type
-        ])
-      }
+      // Fallback for apps that don't run the Expo AppDelegate subscriber.
+      HealthKitObserverCenter.shared.restore()
     }
 
     OnDestroy {
-      self.service.stopObserving()
+      // Observer queries intentionally survive module teardown (JS reload).
+      HealthKitObserverCenter.shared.setEmitter(nil)
     }
 
     Function("isHealthDataAvailable") {
@@ -141,15 +139,30 @@ public class ExpoHealthKitModule: Module {
     }
 
     AsyncFunction("observeTypes") { (types: [String]) in
-      try self.service.startObserving(types)
+      try HealthKitObserverCenter.shared.observe(types)
     }
 
     AsyncFunction("clearObserverQueries") {
-      self.service.stopObserving()
+      HealthKitObserverCenter.shared.clear()
+    }
+
+    AsyncFunction("getObservedTypes") {
+      HealthKitObserverCenter.shared.observedTypes()
+    }
+
+    AsyncFunction("completeUpdate") { (token: String) in
+      HealthKitObserverCenter.shared.completeUpdate(token: token)
+    }
+
+    OnStartObserving("onUpdate") {
+      HealthKitObserverCenter.shared.setEmitter { [weak self] event in
+        self?.sendEvent("onUpdate", event)
+      }
     }
 
     OnStopObserving("onUpdate") {
-      self.service.stopObserving()
+      // Keep queries alive; only detach the JS sink so deliveries queue again.
+      HealthKitObserverCenter.shared.setEmitter(nil)
     }
   }
 }

@@ -125,7 +125,7 @@ internal class HealthConnectService(
       HealthConnectMapping.SLEEP -> {
         val sessions = readAll(SleepSessionRecord::class, filter, ascending, 0)
         val samples = sessions.flatMap { session -> sleepSamples(session) }
-        applyLimit(if (ascending) samples else samples.reversed(), limit)
+        applyLimit(sortSamples(samples, ascending), limit)
       }
       else -> throw HealthConnectUnsupportedException(type)
     }
@@ -492,8 +492,16 @@ internal class HealthConnectService(
         }
       }
     }
-    val ordered = if (ascending) samples else samples.reversed()
-    return applyLimit(ordered, limit)
+    // `readAll` already honours `ascending` at the record level, but flattened
+    // records (heart rate series) can interleave, so sort explicitly by start date.
+    return applyLimit(sortSamples(samples, ascending), limit)
+  }
+
+  private fun sortSamples(samples: List<Map<String, Any?>>, ascending: Boolean): List<Map<String, Any?>> {
+    val sorted = samples.sortedBy { sample ->
+      (sample["startDate"] as? String)?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: Instant.EPOCH
+    }
+    return if (ascending) sorted else sorted.reversed()
   }
 
   private fun quantitySamplesFromRecord(type: String, unit: String, record: Record): List<Map<String, Any?>> {

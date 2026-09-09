@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as HealthKit from '@appeeky/expo-healthkit';
 
 import healthRing from '@/assets/health-ring.png';
+import { enableBackgroundSync } from '@/src/background-sync';
 import { READ_TYPES, WRITE_TYPES, requestHealthAccess } from '@/src/health';
 import { usePermissionSheet } from '@/src/permission-context';
 import { colors } from '@/src/theme/colors';
@@ -28,6 +29,7 @@ export default function WelcomeScreen() {
     })
       .then((status) => {
         if (status === HealthKit.AuthorizationRequestStatus.unnecessary) {
+          void enableBackgroundSync().catch((syncError) => console.warn(syncError));
           router.replace('/(tabs)/(summary)');
         }
       })
@@ -45,6 +47,7 @@ export default function WelcomeScreen() {
     try {
       await requestHealthAccess();
       bumpAuth();
+      void enableBackgroundSync().catch((syncError) => console.warn(syncError));
       router.replace('/(tabs)/(summary)');
     } catch (requestError) {
       setError(String(requestError));

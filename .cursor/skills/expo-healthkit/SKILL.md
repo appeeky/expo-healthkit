@@ -111,8 +111,8 @@ Needs plugin `isBackgroundDeliveryEnabled: true`.
 
 ```ts
 await HealthKit.observe([HealthKit.QuantityType.stepCount]);
-const sub = HealthKit.addUpdateListener(({ type }) => {
-  // re-query
+const sub = HealthKit.addUpdateListener(async ({ type }) => {
+  // re-query; returning a promise holds the iOS completion handler (~25s cap)
 });
 await HealthKit.enableBackgroundDelivery(
   HealthKit.QuantityType.stepCount,
@@ -121,6 +121,8 @@ await HealthKit.enableBackgroundDelivery(
 ```
 
 `useHealthKitUpdates()` is the React hook for the same event. The observer callback is not the data — re-query.
+
+Observed types persist natively; on a killed-app background relaunch iOS re-registers them before JS boots and queues the delivery until `addUpdateListener` runs. Register the listener at module scope / root so it exists on cold start. Step count and other activity types are capped by Apple at one delivery per hour even with `immediate`; heart rate is not. Full guide, limits, and device test recipe: [background-delivery.md](background-delivery.md).
 
 ## Do not
 
@@ -135,4 +137,5 @@ await HealthKit.enableBackgroundDelivery(
 
 - Method signatures, plugin props, units, enums: [reference.md](reference.md)
 - Copy-paste flows: [examples.md](examples.md)
+- Background delivery, cold-start relaunch, Apple limits, debugging: [background-delivery.md](background-delivery.md)
 - iOS vs Android mapping tables: repository `README.md` (Cross-platform section)

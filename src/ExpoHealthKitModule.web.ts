@@ -135,6 +135,12 @@ class ExpoHealthKitModule extends NativeModule<ExpoHealthKitModuleEvents> {
   async clearObserverQueries(): Promise<void> {
     return unavailable();
   }
+
+  async getObservedTypes(): Promise<string[]> {
+    return [];
+  }
+
+  async completeUpdate(): Promise<void> {}
 }
 
 export default registerWebModule(ExpoHealthKitModule, 'ExpoHealthKitModule');

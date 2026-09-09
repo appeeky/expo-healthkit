@@ -20,6 +20,7 @@ export default function SummaryLayout() {
     >
       <Stack.Screen name="index" options={{ title: '' }} />
       <Stack.Screen name="all-data" options={{ title: '' }} />
+      <Stack.Screen name="detail/[key]" options={{ title: '' }} />
     </Stack>
   );
 }
