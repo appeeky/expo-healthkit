@@ -1,3 +1,10 @@
+# [0.2.0](https://github.com/appeeky/expo-healthkit/compare/v0.1.1...v0.2.0) (2026-09-09)
+
+
+### Features
+
+* **ios:** deliver HealthKit background updates before JS starts and hold the completion handler ([6ac0e6f](https://github.com/appeeky/expo-healthkit/commit/6ac0e6fde217940f3e89a7cd5ff64c68a12a0b2b))
+
 ## [0.1.1](https://github.com/appeeky/expo-healthkit/compare/v0.1.0...v0.1.1) (2026-09-05)
 
 
