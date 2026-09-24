@@ -12,8 +12,10 @@ Canonical implementations: `src/index.ts`, `src/types.ts`, `src/identifiers.ts`.
 | `isBackgroundDeliveryEnabled` | `false` | HealthKit background-delivery entitlement plus `UIBackgroundModes: healthkit` |
 | `isClinicalDataEnabled` | `false` | `com.apple.developer.healthkit.access = ["health-records"]` |
 | `healthConnectPrivacyPolicyUrl` | — | Health Connect rationale activity metadata |
+| `healthConnectPermissions` | all mapped permissions | `uses-permission` entries to declare, `READ_STEPS` or `android.permission.health.READ_STEPS`. When set, only these |
+| `isHealthConnectBackgroundReadEnabled` | `false` | Declares `READ_HEALTH_DATA_IN_BACKGROUND` |
 
-The plugin always sets `com.apple.developer.healthkit = true`. The App ID still needs the HealthKit capability. On Android the plugin declares Health Connect `uses-permission` entries for the mapped types and raises `android.minSdkVersion` to 26 when it is lower.
+The plugin always sets `com.apple.developer.healthkit = true`. The App ID still needs the HealthKit capability. On Android the plugin is the only place Health Connect `uses-permission` entries are declared (the module manifest declares none) and it raises `android.minSdkVersion` to 26 when it is lower.
 
 Min iOS: 16.4. Android: Health Connect (`connect-client` 1.1), API 26+.
 
@@ -21,9 +23,14 @@ Min iOS: 16.4. Android: Health Connect (`connect-client` 1.1), API 26+.
 
 ```ts
 isAvailable(): boolean
-requestAuthorization({ toRead?, toShare? }): Promise<boolean>
+getSupportedTypes(): readonly string[]                       // static; [] on web
+getUnsupportedTypes(identifiers): string[]                   // the ones this platform cannot provide
+requestAuthorization({ toRead?, toShare?, includeBackgroundRead? }): Promise<boolean>
 getAuthorizationStatus(type): Promise<number> // AuthorizationStatus; write only
 getRequestStatusForAuthorization({ toRead?, toShare? }): Promise<number> // AuthorizationRequestStatus
+getGrantedPermissions(): Promise<readonly string[]>          // Android: raw permission strings; iOS: write-authorized identifiers
+requestPermissions(permissions): Promise<readonly string[]>  // Android only; iOS throws ERR_HEALTHKIT_UNSUPPORTED
+revokeAllPermissions(): Promise<void>                        // Android only; iOS throws ERR_HEALTHKIT_UNSUPPORTED
 ```
 
 `AuthorizationStatus`: `notDetermined` 0, `sharingDenied` 1, `sharingAuthorized` 2.
@@ -33,15 +40,17 @@ getRequestStatusForAuthorization({ toRead?, toShare? }): Promise<number> // Auth
 ## Quantity / category / workout
 
 ```ts
-queryQuantitySamples({ type, unit, from?, to?, limit?, ascending? }): Promise<QuantitySample[]>
-queryCategorySamples({ type, from?, to?, limit?, ascending? }): Promise<CategorySample[]>
-queryWorkouts({ from?, to?, limit?, ascending?, activityType? }): Promise<WorkoutSample[]>
-queryStatistics({ type, unit, from?, to?, options? }): Promise<Statistics>
-queryStatisticsCollection({ type, unit, from?, to?, options?, interval? }): Promise<Statistics[]>
-queryAnchored({ type, unit?, from?, to?, limit?, anchor? }): Promise<AnchoredQueryResult>
+queryQuantitySamples({ type, unit, from?, to?, limit?, ascending?, sources?, excludeSources? }): Promise<QuantitySample[]>
+queryCategorySamples({ type, from?, to?, limit?, ascending?, sources?, excludeSources? }): Promise<CategorySample[]>
+queryWorkouts({ from?, to?, limit?, ascending?, activityType?, sources?, excludeSources? }): Promise<WorkoutSample[]>
+queryStatistics({ type, unit, from?, to?, options?, sources?, excludeSources? }): Promise<Statistics>
+queryStatisticsCollection({ type, unit, from?, to?, options?, interval?, sources?, excludeSources? }): Promise<Statistics[]>
+queryAnchored({ type, unit?, from?, to?, limit?, anchor?, sources?, excludeSources? }): Promise<AnchoredQueryResult>
 ```
 
-`QuantitySample`: `uuid`, `type`, `startDate`, `endDate`, `value`, `unit`, `sourceName?`, `sourceId?`, `metadata?`.
+`sources` / `excludeSources`: bundle ids (iOS) or package names (Android); `'self'` is this app. Applied natively before `limit`. Android statistics support `sources` only (`excludeSources` throws `ERR_HEALTH_CONNECT_UNSUPPORTED`). The specialized reads below take the same two options.
+
+`QuantitySample`: `uuid`, `type`, `startDate`, `endDate`, `value`, `unit`, `sourceName?`, `sourceId?`, `metadata?`, `statistic?` (`'sdnn'` iOS / `'rmssd'` Android, on `heartRateVariabilitySDNN` only).
 
 `CategorySample`: same without `unit`; `value` is the category enum int.
 
@@ -49,7 +58,7 @@ queryAnchored({ type, unit?, from?, to?, limit?, anchor? }): Promise<AnchoredQue
 
 `Statistics`: `startDate`, `endDate`, `unit`, optional `sum`, `min`, `max`, `average`, `mostRecent`.
 
-`AnchoredQueryResult`: `{ added, deleted, anchor }`. Persist `anchor` and pass it back.
+`AnchoredQueryResult`: `{ added, deleted, anchor }`. Persist `anchor` and pass it back. It is opaque and per-platform, not a timestamp; a token from another library or an expired Android changes token (30 days) restarts the sync instead of erroring.
 
 `StatisticsOption` bitmask: `discreteAverage` 1, `discreteMin` 2, `discreteMax` 4, `cumulativeSum` 8, `discreteMostRecent` 32.
 
@@ -146,4 +155,4 @@ Full quantity/category lists: `src/identifiers.ts`.
 
 ## Errors
 
-`HealthKitUnavailableError` (`ERR_HEALTHKIT_UNAVAILABLE`) on web or when HealthKit / Health Connect is missing. Native identifier/unit/date mistakes surface as coded Expo exceptions. Apple-only APIs on Android throw `ERR_HEALTH_CONNECT_UNSUPPORTED`.
+`HealthKitUnavailableError` (`ERR_HEALTHKIT_UNAVAILABLE`) on web or when HealthKit / Health Connect is missing. Native identifier/unit/date mistakes surface as coded Expo exceptions. Apple-only APIs on Android throw `ERR_HEALTH_CONNECT_UNSUPPORTED`; Android-only ones (`requestPermissions`, `revokeAllPermissions`) on iOS throw `ERR_HEALTHKIT_UNSUPPORTED`.

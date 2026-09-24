@@ -187,6 +187,14 @@ const watchOnly = await HealthKit.queryWorkouts({
 
 The filters run natively, **before `limit`**, on both platforms: `limit: 100` with `excludeSources: ['self']` returns the 100 newest samples that other apps wrote, not 100 rows minus yours. On iOS they compile to an `HKQuery.predicateForObjects(from:)` predicate; on Android `sources` is the request's `dataOriginFilter` and `excludeSources` is applied to each page before the limit is counted. `queryStatistics` / `queryStatisticsCollection` on Android support `sources` only; `excludeSources` there throws `ERR_HEALTH_CONNECT_UNSUPPORTED`. `queryAnchored` filters added samples; deletions carry no source and are always returned.
 
+#### Anchored sync
+
+`queryAnchored` returns `{ added, deleted, anchor }`. Store `anchor` and pass it back next time to receive only what changed.
+
+- **The anchor is an opaque token, not a timestamp.** On iOS it is an archived `HKQueryAnchor`; on Android it is a Health Connect changes token. It is not portable between platforms, between apps, or from another library — an anchor saved by `@kingstinct/react-native-healthkit` or `react-native-health-connect`, or an ISO date from a timestamp-based cursor, is not a valid token here. Persist it per platform and per type, and when migrating from another cursor start with `anchor: null` and dedupe by `uuid`.
+- **A stale or foreign token restarts the sync; it is not an error you can branch on.** iOS treats a string that is not base64 as "no anchor" and runs the initial fetch again (only a base64 string that is not an `HKQueryAnchor` archive rejects). Android does the same for a token Health Connect rejects or reports expired: it re-reads every sample in `from`/`to` and returns a fresh token, with `deleted` empty for that pass.
+- **Android's 30-day window applies twice.** Health Connect keeps its change log for 30 days, so a token older than that is expired and triggers the restart above — deletions made during the gap are lost, and additions are re-fetched. The restart's read is itself limited to the last 30 days unless the user granted `READ_HEALTH_DATA_HISTORY` (requested with every `toRead`). A user who does not open the app for a month therefore re-syncs the window rather than losing data, but only within what history access allows.
+
 ECG, activity rings, clinical records, audiograms, workout GPS routes, heartbeat series, and correlations are not quantity/category/workout samples. Request the matching identifier in `toRead`:
 
 ```ts
@@ -393,7 +401,7 @@ These throw `ERR_HEALTH_CONNECT_UNSUPPORTED` on Android. Health Connect has no e
 | Background reads | Observer queries / background delivery | `requestAuthorization({ includeBackgroundRead: true })` plus the plugin's `isHealthConnectBackgroundReadEnabled` |
 | Unmapped types in `requestAuthorization` | Forwarded if HealthKit knows them | Skipped |
 | History window | Granted samples, any age | Often last **30 days** unless the user also grants history access (the SDK requests it) |
-| Anchored sync | `HKQueryAnchor` (opaque string) | Health Connect changes token (opaque string). Do not reuse an iOS anchor on Android |
+| Anchored sync | `HKQueryAnchor` (opaque string) | Health Connect changes token (opaque string). Do not reuse an iOS anchor on Android. Tokens expire after 30 days — see [Anchored sync](#anchored-sync) |
 | HRV | SDNN. Samples carry `statistic: 'sdnn'` | Mapped to Health Connect RMSSD on the same `heartRateVariabilitySDNN` identifier — not the same statistic. Samples carry `statistic: 'rmssd'`; branch on it before charting the two together |
 | Workout GPS | `queryWorkoutRoute` | Unsupported |
 | `minSdk` | iOS 16.4 | API 26 (plugin raises it) |
