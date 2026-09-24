@@ -191,6 +191,12 @@ export interface HeartbeatSeriesSample {
   metadata?: Record<string, string>;
 }
 
+/**
+ * Which HRV statistic a `heartRateVariabilitySDNN` sample carries. HealthKit
+ * stores SDNN; Health Connect stores RMSSD, mapped onto the same identifier.
+ */
+export type HeartRateVariabilityStatistic = 'sdnn' | 'rmssd';
+
 export interface QuantitySample {
   uuid: string;
   type: string;
@@ -201,6 +207,8 @@ export interface QuantitySample {
   sourceName?: string;
   sourceId?: string;
   metadata?: Record<string, string>;
+  /** Set on `heartRateVariabilitySDNN` samples only: `'sdnn'` on iOS, `'rmssd'` on Android. */
+  statistic?: HeartRateVariabilityStatistic;
 }
 
 export interface CategorySample {
@@ -458,6 +466,7 @@ export interface NativeQuantitySample {
   sourceName?: string;
   sourceId?: string;
   metadata?: Record<string, string>;
+  statistic?: HeartRateVariabilityStatistic;
 }
 
 export interface NativeCategorySample {

@@ -656,6 +656,10 @@ internal final class HealthKitService {
     record["sourceName"] = sample.sourceRevision.source.name
     record["sourceId"] = sample.sourceRevision.source.bundleIdentifier
     record["metadata"] = HealthKitIdentifiers.stringifyMetadata(sample.metadata)
+    if sample.quantityType.identifier == HKQuantityTypeIdentifier.heartRateVariabilitySDNN.rawValue {
+      // Health Connect maps RMSSD onto the same identifier; let callers tell them apart.
+      record["statistic"] = "sdnn"
+    }
     return record
   }
 

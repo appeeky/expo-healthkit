@@ -375,7 +375,7 @@ These throw `ERR_HEALTH_CONNECT_UNSUPPORTED` on Android. Health Connect has no e
 | Unmapped types in `requestAuthorization` | Forwarded if HealthKit knows them | Skipped |
 | History window | Granted samples, any age | Often last **30 days** unless the user also grants history access (the SDK requests it) |
 | Anchored sync | `HKQueryAnchor` (opaque string) | Health Connect changes token (opaque string). Do not reuse an iOS anchor on Android |
-| HRV | SDNN | Mapped to Health Connect RMSSD on the same `heartRateVariabilitySDNN` identifier — not the same statistic |
+| HRV | SDNN. Samples carry `statistic: 'sdnn'` | Mapped to Health Connect RMSSD on the same `heartRateVariabilitySDNN` identifier — not the same statistic. Samples carry `statistic: 'rmssd'`; branch on it before charting the two together |
 | Workout GPS | `queryWorkoutRoute` | Unsupported |
 | `minSdk` | iOS 16.4 | API 26 (plugin raises it) |
 

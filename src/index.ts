@@ -52,6 +52,7 @@ import type {
   HeartbeatSeriesQueryOptions,
   HeartbeatSeriesSample,
   NativeHealthUpdateEvent,
+  NativeQuantitySample,
   QuantityQueryOptions,
   QuantitySample,
   SampleQueryOptions,
@@ -265,17 +266,7 @@ export async function queryWorkoutRoute(
   }));
 }
 
-function mapQuantitySample(sample: {
-  uuid: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  value: number;
-  unit: string;
-  sourceName?: string;
-  sourceId?: string;
-  metadata?: Record<string, string>;
-}) {
+function mapQuantitySample(sample: NativeQuantitySample): QuantitySample {
   return {
     ...sample,
     startDate: fromIso(sample.startDate),

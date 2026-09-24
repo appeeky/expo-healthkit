@@ -967,16 +967,23 @@ internal class HealthConnectService(
     end: Instant,
     value: Double,
     unit: String
-  ): Map<String, Any?> = mapOf(
-    "uuid" to metadata.id,
-    "type" to type,
-    "startDate" to iso(start),
-    "endDate" to iso(end),
-    "value" to value,
-    "unit" to unit,
-    "sourceName" to metadata.dataOrigin.packageName,
-    "sourceId" to metadata.dataOrigin.packageName
-  )
+  ): Map<String, Any?> {
+    val sample = mutableMapOf<String, Any?>(
+      "uuid" to metadata.id,
+      "type" to type,
+      "startDate" to iso(start),
+      "endDate" to iso(end),
+      "value" to value,
+      "unit" to unit,
+      "sourceName" to metadata.dataOrigin.packageName,
+      "sourceId" to metadata.dataOrigin.packageName
+    )
+    if (type == HealthConnectMapping.HRV) {
+      // HeartRateVariabilityRmssdRecord is served under the SDNN identifier; say so.
+      sample["statistic"] = "rmssd"
+    }
+    return sample
+  }
 
   private fun categorySample(
     metadata: Metadata,

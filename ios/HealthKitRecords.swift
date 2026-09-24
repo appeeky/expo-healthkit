@@ -184,6 +184,7 @@ internal struct QuantitySampleRecord: Record {
   @Field var sourceName: String?
   @Field var sourceId: String?
   @Field var metadata: [String: String]?
+  @Field var statistic: String?
 }
 
 internal struct CategorySampleRecord: Record {
