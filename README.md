@@ -160,6 +160,26 @@ On iOS, read authorization is intentionally opaque: `getAuthorizationStatus` ret
 
 `limit` defaults to HealthKit's unlimited query. Dates accept `Date` or ISO-8601 strings. Units are HealthKit unit strings (`count`, `count/min`, `kcal`, `kg`, `m`, `%`, …) also exported as `Unit`.
 
+#### Source filters
+
+Every query above (except activity summaries and workout routes) accepts `sources` and `excludeSources`. Both take iOS bundle identifiers / Android package names; `'self'` in `excludeSources` is this app. Use it to skip your own writes when you sync:
+
+```ts
+const heartRate = await HealthKit.queryQuantitySamples({
+  type: HealthKit.QuantityType.heartRate,
+  unit: HealthKit.Unit.countPerMinute,
+  from: today,
+  limit: 100,
+  excludeSources: ['self'],
+});
+
+const watchOnly = await HealthKit.queryWorkouts({
+  sources: ['com.apple.health'],
+});
+```
+
+The filters run natively, **before `limit`**, on both platforms: `limit: 100` with `excludeSources: ['self']` returns the 100 newest samples that other apps wrote, not 100 rows minus yours. On iOS they compile to an `HKQuery.predicateForObjects(from:)` predicate; on Android `sources` is the request's `dataOriginFilter` and `excludeSources` is applied to each page before the limit is counted. `queryStatistics` / `queryStatisticsCollection` on Android support `sources` only; `excludeSources` there throws `ERR_HEALTH_CONNECT_UNSUPPORTED`. `queryAnchored` filters added samples; deletions carry no source and are always returned.
+
 ECG, activity rings, clinical records, audiograms, workout GPS routes, heartbeat series, and correlations are not quantity/category/workout samples. Request the matching identifier in `toRead`:
 
 ```ts

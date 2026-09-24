@@ -9,7 +9,9 @@ extension HealthKitService {
       from: options.from,
       to: options.to,
       limit: options.limit,
-      ascending: options.ascending
+      ascending: options.ascending,
+      sources: options.sources,
+      excludeSources: options.excludeSources
     )
 
     var records: [[String: Any]] = []
@@ -30,7 +32,9 @@ extension HealthKitService {
       from: options.from,
       to: options.to,
       limit: options.limit,
-      ascending: options.ascending
+      ascending: options.ascending,
+      sources: options.sources,
+      excludeSources: options.excludeSources
     )
     return samples.compactMap { sample in
       guard let audiogram = sample as? HKAudiogramSample else {
@@ -73,7 +77,9 @@ extension HealthKitService {
       from: options.from,
       to: options.to,
       limit: options.limit,
-      ascending: options.ascending
+      ascending: options.ascending,
+      sources: options.sources,
+      excludeSources: options.excludeSources
     )
     return samples.compactMap { sample in
       guard let record = sample as? HKClinicalRecord else {
@@ -125,7 +131,9 @@ extension HealthKitService {
       from: options.from,
       to: options.to,
       limit: options.limit,
-      ascending: options.ascending
+      ascending: options.ascending,
+      sources: options.sources,
+      excludeSources: options.excludeSources
     )
     return samples.compactMap { sample in
       guard let correlation = sample as? HKCorrelation else {
@@ -165,7 +173,9 @@ extension HealthKitService {
       from: options.from,
       to: options.to,
       limit: options.limit,
-      ascending: options.ascending
+      ascending: options.ascending,
+      sources: options.sources,
+      excludeSources: options.excludeSources
     )
 
     var records: [[String: Any]] = []

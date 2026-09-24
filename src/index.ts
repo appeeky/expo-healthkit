@@ -55,6 +55,7 @@ import type {
   QuantityQueryOptions,
   QuantitySample,
   SampleQueryOptions,
+  SourceFilterOptions,
   QuantitySampleInput,
   Statistics,
   StatisticsCollectionQueryOptions,
@@ -84,6 +85,13 @@ function assertAvailable(): void {
 
 export function isAvailable(): boolean {
   return isHealthPlatform() && ExpoHealthKitModule.isHealthDataAvailable();
+}
+
+function sourceFilters(options: SourceFilterOptions) {
+  return {
+    sources: options.sources ? [...options.sources] : undefined,
+    excludeSources: options.excludeSources ? [...options.excludeSources] : undefined,
+  };
 }
 
 export async function requestAuthorization(options: AuthorizationOptions = {}): Promise<boolean> {
@@ -120,6 +128,7 @@ export async function queryQuantitySamples(
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -137,6 +146,7 @@ export async function queryCategorySamples(options: SampleQueryOptions): Promise
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -154,6 +164,7 @@ export async function queryWorkouts(options: WorkoutQueryOptions = {}): Promise<
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
     activityType: options.activityType,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -174,6 +185,7 @@ export async function queryElectrocardiograms(
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
     includeVoltage: options.includeVoltage ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -205,6 +217,7 @@ export async function queryClinicalRecords(
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -223,6 +236,7 @@ export async function queryAudiograms(
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -277,6 +291,7 @@ export async function queryCorrelations(options: CorrelationQueryOptions): Promi
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -297,6 +312,7 @@ export async function queryHeartbeatSeries(
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
     includeBeats: options.includeBeats ?? true,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -314,6 +330,7 @@ export async function queryStatistics(options: StatisticsQueryOptions): Promise<
     from: toOptionalIso(options.from),
     to: toOptionalIso(options.to),
     options: options.options ?? 0,
+    ...sourceFilters(options),
   });
 
   return {
@@ -340,6 +357,7 @@ export async function queryStatisticsCollection(
     hour: interval.hour ?? 0,
     minute: interval.minute ?? 0,
     second: interval.second ?? 0,
+    ...sourceFilters(options),
   });
 
   return results.map((stats) => ({
@@ -358,6 +376,7 @@ export async function queryAnchored(options: AnchoredQueryOptions): Promise<Anch
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     anchor: options.anchor ?? undefined,
+    ...sourceFilters(options),
   });
 
   return {

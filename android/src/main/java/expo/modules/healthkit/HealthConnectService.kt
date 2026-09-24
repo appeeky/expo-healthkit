@@ -30,6 +30,7 @@ import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.Vo2MaxRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.WheelchairPushesRecord
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.AggregateGroupByDurationRequest
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
@@ -112,7 +113,7 @@ internal class HealthConnectService(
     val filter = timeFilter(options)
     val limit = intValue(options["limit"])
     val ascending = options["ascending"] as? Boolean ?: false
-    return quantitySamples(type, unit, filter, limit, ascending)
+    return quantitySamples(type, unit, filter, limit, ascending, sourceFilter(options))
   }
 
   suspend fun queryCategorySamples(options: Map<String, Any?>): List<Map<String, Any?>> {
@@ -123,7 +124,7 @@ internal class HealthConnectService(
     val ascending = options["ascending"] as? Boolean ?: false
     return when (type) {
       HealthConnectMapping.SLEEP -> {
-        val sessions = readAll(SleepSessionRecord::class, filter, ascending, 0)
+        val sessions = readAll(SleepSessionRecord::class, filter, ascending, 0, sourceFilter(options))
         val samples = sessions.flatMap { session -> sleepSamples(session) }
         applyLimit(sortSamples(samples, ascending), limit)
       }
@@ -137,7 +138,7 @@ internal class HealthConnectService(
     val limit = intValue(options["limit"])
     val ascending = options["ascending"] as? Boolean ?: false
     val activityType = (options["activityType"] as? Number)?.toInt()
-    val records = readAll(ExerciseSessionRecord::class, filter, ascending, 0)
+    val records = readAll(ExerciseSessionRecord::class, filter, ascending, 0, sourceFilter(options))
     val mapped = records.mapNotNull { record ->
       val hkType = HealthConnectWorkouts.toHealthKit(record.exerciseType)
       if (activityType != null && hkType != activityType) {
@@ -154,9 +155,10 @@ internal class HealthConnectService(
     val filter = timeFilter(options)
     val limit = intValue(options["limit"])
     val ascending = options["ascending"] as? Boolean ?: false
+    val sources = sourceFilter(options)
     return when (type) {
       HealthConnectMapping.BLOOD_PRESSURE -> {
-        readAll(BloodPressureRecord::class, filter, ascending, limit).map { record ->
+        readAll(BloodPressureRecord::class, filter, ascending, limit, sources).map { record ->
           correlation(
             record.metadata,
             type,
@@ -192,7 +194,7 @@ internal class HealthConnectService(
         }
       }
       HealthConnectMapping.FOOD -> {
-        readAll(NutritionRecord::class, filter, ascending, limit).map { record ->
+        readAll(NutritionRecord::class, filter, ascending, limit, sources).map { record ->
           val objects = HealthConnectNutrition.presentFields(record).map { (identifier, canonical) ->
             val kind = HealthConnectMapping.quantityKind(identifier)
             val unit = if (kind == QuantityKind.ENERGY) "kcal" else "g"
@@ -218,7 +220,16 @@ internal class HealthConnectService(
     val bits = intValue(options["options"])
     val start = filterStart(options)
     val end = filterEnd(options)
-    return statisticsRecord(type, unit, start, end, bits, aggregate(type, filter, bits), latestValue(type, unit, filter, bits))
+    val sources = aggregateSourceFilter(options)
+    return statisticsRecord(
+      type,
+      unit,
+      start,
+      end,
+      bits,
+      aggregate(type, filter, bits, sources.origins),
+      latestValue(type, unit, filter, bits, sources)
+    )
   }
 
   suspend fun queryStatisticsCollection(options: Map<String, Any?>): List<Map<String, Any?>> {
@@ -237,6 +248,7 @@ internal class HealthConnectService(
     if (metrics.isEmpty()) {
       return emptyList()
     }
+    val origins = aggregateSourceFilter(options).origins
     val durationBased = hour > 0 || minute > 0 || second > 0
     return if (durationBased) {
       val duration = Duration.ofHours(max(hour, 0).toLong())
@@ -244,7 +256,7 @@ internal class HealthConnectService(
         .plusSeconds(max(second, 0).toLong())
         .let { if (it.isZero) Duration.ofHours(1) else it }
       client().aggregateGroupByDuration(
-        AggregateGroupByDurationRequest(metrics, filter, duration)
+        AggregateGroupByDurationRequest(metrics, filter, duration, origins)
       ).map { result ->
         statisticsRecord(type, unit, result.startTime, result.endTime, bits, result.result, null)
       }
@@ -256,7 +268,7 @@ internal class HealthConnectService(
         else -> Period.ofDays(1)
       }
       client().aggregateGroupByPeriod(
-        AggregateGroupByPeriodRequest(metrics, localTimeFilter(options), period)
+        AggregateGroupByPeriodRequest(metrics, localTimeFilter(options), period, origins)
       ).map { result ->
         val start = result.startTime.atZone(ZoneId.systemDefault()).toInstant()
         val end = result.endTime.atZone(ZoneId.systemDefault()).toInstant()
@@ -271,9 +283,10 @@ internal class HealthConnectService(
     val unit = options["unit"] as? String ?: ""
     val recordClass = HealthConnectMapping.recordClass(type) ?: unmappedType(type)
     val anchor = options["anchor"] as? String
+    val sources = sourceFilter(options)
     val client = client()
     if (anchor.isNullOrBlank()) {
-      val samples = quantitySamples(type, unit, timeFilter(options), intValue(options["limit"]), options["ascending"] as? Boolean ?: true)
+      val samples = quantitySamples(type, unit, timeFilter(options), intValue(options["limit"]), options["ascending"] as? Boolean ?: true, sources)
       val token = client.getChangesToken(ChangesTokenRequest(setOf(recordClass)))
       return mapOf("added" to samples, "deleted" to emptyList<Map<String, Any?>>(), "anchor" to token)
     }
@@ -284,13 +297,16 @@ internal class HealthConnectService(
       while (true) {
         val changes = client.getChanges(token)
         if (changes.changesTokenExpired) {
-          val samples = quantitySamples(type, unit, timeFilter(options), intValue(options["limit"]), true)
+          val samples = quantitySamples(type, unit, timeFilter(options), intValue(options["limit"]), true, sources)
           val fresh = client.getChangesToken(ChangesTokenRequest(setOf(recordClass)))
           return mapOf("added" to samples, "deleted" to emptyList<Map<String, Any?>>(), "anchor" to fresh)
         }
         for (change in changes.changes) {
           when (change) {
-            is UpsertionChange -> added += quantitySamplesFromRecord(type, unit, change.record)
+            // Deletions carry no data origin, so they are never filtered.
+            is UpsertionChange -> if (sources.matches(change.record.metadata)) {
+              added += quantitySamplesFromRecord(type, unit, change.record)
+            }
             is DeletionChange -> deleted += mapOf("uuid" to change.recordId, "type" to type)
           }
         }
@@ -299,7 +315,7 @@ internal class HealthConnectService(
       }
       mapOf("added" to added, "deleted" to deleted, "anchor" to token)
     } catch (_: Exception) {
-      val samples = quantitySamples(type, unit, timeFilter(options), intValue(options["limit"]), true)
+      val samples = quantitySamples(type, unit, timeFilter(options), intValue(options["limit"]), true, sources)
       val token = client.getChangesToken(ChangesTokenRequest(setOf(recordClass)))
       mapOf("added" to samples, "deleted" to emptyList<Map<String, Any?>>(), "anchor" to token)
     }
@@ -467,11 +483,12 @@ internal class HealthConnectService(
     unit: String,
     filter: TimeRangeFilter,
     limit: Int,
-    ascending: Boolean
+    ascending: Boolean,
+    sources: SourceFilter
   ): List<Map<String, Any?>> {
     val samples = when (type) {
       HealthConnectMapping.HEART_RATE -> {
-        readAll(HeartRateRecord::class, filter, ascending, 0).flatMap { record ->
+        readAll(HeartRateRecord::class, filter, ascending, 0, sources).flatMap { record ->
           record.samples.map { sample ->
             quantitySample(
               record.metadata,
@@ -487,7 +504,7 @@ internal class HealthConnectService(
       HealthConnectMapping.BASAL_ENERGY -> emptyList()
       else -> {
         val recordClass = HealthConnectMapping.recordClass(type) ?: unmappedType(type)
-        readAll(recordClass, filter, ascending, 0).flatMap { record ->
+        readAll(recordClass, filter, ascending, 0, sources).flatMap { record ->
           quantitySamplesFromRecord(type, unit, record)
         }
       }
@@ -715,11 +732,16 @@ internal class HealthConnectService(
     }
   }
 
-  private suspend fun aggregate(type: String, filter: TimeRangeFilter, bits: Int): AggregationResult? {
+  private suspend fun aggregate(
+    type: String,
+    filter: TimeRangeFilter,
+    bits: Int,
+    origins: Set<DataOrigin>
+  ): AggregationResult? {
     val metrics = aggregateMetrics(type, bits)
     if (metrics.isEmpty()) return null
     val client = client()
-    return client.aggregate(AggregateRequest(metrics, filter))
+    return client.aggregate(AggregateRequest(metrics, filter, origins))
   }
 
   private fun aggregateMetrics(type: String, bits: Int): Set<androidx.health.connect.client.aggregate.AggregateMetric<*>> {
@@ -772,9 +794,15 @@ internal class HealthConnectService(
     }
   }
 
-  private suspend fun latestValue(type: String, unit: String, filter: TimeRangeFilter, bits: Int): Double? {
+  private suspend fun latestValue(
+    type: String,
+    unit: String,
+    filter: TimeRangeFilter,
+    bits: Int,
+    sources: SourceFilter
+  ): Double? {
     if (!hasOption(bits, OPT_RECENT)) return null
-    return quantitySamples(type, unit, filter, 1, false).firstOrNull()?.get("value") as? Double
+    return quantitySamples(type, unit, filter, 1, false, sources).firstOrNull()?.get("value") as? Double
   }
 
   private fun statisticsRecord(
@@ -906,7 +934,8 @@ internal class HealthConnectService(
     recordType: KClass<T>,
     filter: TimeRangeFilter,
     ascending: Boolean,
-    limit: Int
+    limit: Int,
+    sources: SourceFilter = SourceFilter.NONE
   ): List<T> {
     val out = mutableListOf<T>()
     var token: String? = null
@@ -916,12 +945,15 @@ internal class HealthConnectService(
         ReadRecordsRequest(
           recordType = recordType,
           timeRangeFilter = filter,
+          dataOriginFilter = sources.origins,
           ascendingOrder = ascending,
           pageSize = pageSize,
           pageToken = token
         )
       )
-      out += response.records
+      // Health Connect has no exclude filter; drop excluded origins here, before
+      // `limit` is checked, so a capped read never comes back short.
+      out += response.records.filter { sources.matches(it.metadata) }
       token = response.pageToken
       if (limit > 0 && out.size >= limit) break
     } while (token != null)
@@ -999,6 +1031,22 @@ internal class HealthConnectService(
   }
 
   private fun metadata(): Metadata = Metadata.manualEntry()
+
+  private fun sourceFilter(options: Map<String, Any?>): SourceFilter = SourceFilter(
+    included = stringList(options["sources"]).mapTo(mutableSetOf()) { resolvePackage(it) },
+    excluded = stringList(options["excludeSources"]).mapTo(mutableSetOf()) { resolvePackage(it) }
+  )
+
+  private fun aggregateSourceFilter(options: Map<String, Any?>): SourceFilter {
+    val sources = sourceFilter(options)
+    if (sources.excluded.isNotEmpty()) {
+      throw HealthConnectUnsupportedException("excludeSources on statistics")
+    }
+    return sources
+  }
+
+  private fun resolvePackage(source: String): String =
+    if (source == "self") context.packageName else source
 
   private fun timeFilter(options: Map<String, Any?>): TimeRangeFilter {
     val from = (options["from"] as? String)?.let { parseInstant(it) }
@@ -1079,5 +1127,26 @@ internal class HealthConnectService(
       if (context == null) return false
       return HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
     }
+  }
+}
+
+/**
+ * `included` becomes the request's `dataOriginFilter`; `excluded` is applied to
+ * the returned records because Health Connect only filters by inclusion.
+ */
+private data class SourceFilter(
+  val included: Set<String>,
+  val excluded: Set<String>
+) {
+  val origins: Set<DataOrigin>
+    get() = included.mapTo(mutableSetOf()) { DataOrigin(it) }
+
+  fun matches(metadata: Metadata): Boolean {
+    val packageName = metadata.dataOrigin.packageName
+    return (included.isEmpty() || packageName in included) && packageName !in excluded
+  }
+
+  companion object {
+    val NONE = SourceFilter(emptySet(), emptySet())
   }
 }
