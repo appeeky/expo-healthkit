@@ -38,6 +38,18 @@ public class ExpoHealthKitModule: Module {
       try await self.service.requestStatusForAuthorization(options)
     }
 
+    AsyncFunction("getGrantedPermissions") { (candidates: [String]) in
+      try self.service.grantedPermissions(candidates: candidates)
+    }
+
+    AsyncFunction("revokeAllPermissions") {
+      try self.service.unsupported("revokeAllPermissions")
+    }
+
+    AsyncFunction("requestPermissions") { (_: [String]) in
+      try self.service.unsupported("requestPermissions")
+    }
+
     AsyncFunction("queryQuantitySamples") { (options: QuantityQueryOptions) in
       try await self.service.queryQuantitySamples(options)
     }

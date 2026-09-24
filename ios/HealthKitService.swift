@@ -53,6 +53,21 @@ internal final class HealthKitService {
     return Int(store.authorizationStatus(for: type).rawValue)
   }
 
+  /// Identifiers this app may write. HealthKit never discloses read grants.
+  func grantedPermissions(candidates: [String]) throws -> [String] {
+    try ensureAvailable()
+    return candidates.filter { identifier in
+      guard let type = try? HealthKitIdentifiers.objectType(for: identifier) else {
+        return false
+      }
+      return store.authorizationStatus(for: type) == .sharingAuthorized
+    }
+  }
+
+  func unsupported(_ feature: String) throws {
+    throw HealthKitUnsupportedException(feature)
+  }
+
   func requestStatusForAuthorization(_ options: AuthorizationOptions) async throws -> Int {
     try ensureAvailable()
     let readTypes = Set(try options.toRead.map { try HealthKitIdentifiers.objectType(for: $0) })

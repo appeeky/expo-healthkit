@@ -28,6 +28,18 @@ class ExpoHealthKitModule extends NativeModule<ExpoHealthKitModuleEvents> {
     return unavailable();
   }
 
+  async getGrantedPermissions(): Promise<string[]> {
+    return unavailable();
+  }
+
+  async revokeAllPermissions(): Promise<void> {
+    return unavailable();
+  }
+
+  async requestPermissions(): Promise<string[]> {
+    return unavailable();
+  }
+
   async queryQuantitySamples(): Promise<never> {
     return unavailable();
   }

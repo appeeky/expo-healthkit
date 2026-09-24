@@ -62,6 +62,18 @@ class ExpoHealthKitModule : Module() {
       service.requestStatusForAuthorization(options)
     }
 
+    AsyncFunction("getGrantedPermissions") Coroutine { _: List<String> ->
+      service.grantedPermissions()
+    }
+
+    AsyncFunction("revokeAllPermissions") Coroutine { ->
+      service.revokeAllPermissions()
+    }
+
+    AsyncFunction("requestPermissions") Coroutine { permissions: List<String> ->
+      service.requestRawPermissions(permissions)
+    }
+
     AsyncFunction("queryQuantitySamples") Coroutine { options: Map<String, Any?> ->
       service.queryQuantitySamples(options)
     }

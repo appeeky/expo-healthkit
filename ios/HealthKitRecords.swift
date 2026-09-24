@@ -3,6 +3,8 @@ import ExpoModulesCore
 internal struct AuthorizationOptions: Record {
   @Field var toRead: [String] = []
   @Field var toShare: [String] = []
+  /// Android only (Health Connect background reads). Accepted and ignored here.
+  @Field var includeBackgroundRead: Bool = false
 }
 
 internal struct QuantityQueryOptions: Record {

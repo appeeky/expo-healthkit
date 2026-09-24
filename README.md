@@ -133,12 +133,17 @@ const heartRate = await HealthKit.queryQuantitySamples({
 | `isAvailable()`                                         | `true` on iOS when HealthKit is present, and on Android when Health Connect is installed         |
 | `getSupportedTypes()`                                   | Identifiers this platform can provide. Static, no prompt. iOS: what HealthKit resolves on this OS; Android: the Health Connect mapping; web: `[]` |
 | `getUnsupportedTypes(identifiers)`                      | The subset of `identifiers` this platform cannot provide                                          |
-| `requestAuthorization({ toRead, toShare })`             | Shows the system permission sheet (HealthKit or Health Connect)                                  |
+| `requestAuthorization({ toRead, toShare, includeBackgroundRead })` | Shows the system permission sheet (HealthKit or Health Connect). `includeBackgroundRead` adds Health Connect's `READ_HEALTH_DATA_IN_BACKGROUND` (Android only; needs the plugin's `isHealthConnectBackgroundReadEnabled`) |
 | `getAuthorizationStatus(type)`                          | iOS: reliable for **write** types. Android: reflects granted Health Connect read or write access |
 | `getRequestStatusForAuthorization({ toRead, toShare })` | Whether you still need to prompt                                                                 |
+| `getGrantedPermissions()`                               | Android: granted `android.permission.health.*` strings. iOS: identifiers this app may **write** — HealthKit does not disclose read grants |
+| `requestPermissions(permissions)`                       | Android: request raw `android.permission.health.*` strings, resolves with the granted subset. iOS: throws `ERR_HEALTHKIT_UNSUPPORTED` |
+| `revokeAllPermissions()`                                | Android: in-app "disconnect Health Connect". iOS: throws `ERR_HEALTHKIT_UNSUPPORTED` (HealthKit has no revoke) |
 
 
 On iOS, read authorization is intentionally opaque: `getAuthorizationStatus` returning `notDetermined` / `sharingDenied` does **not** mean the user blocked reads.
+
+`ERR_HEALTHKIT_UNSUPPORTED` is the iOS mirror of `ERR_HEALTH_CONNECT_UNSUPPORTED`: the method exists on both platforms so app code needs no `Platform.OS` fork, and the one backend that cannot do it says so.
 
 ### 📊 Samples and statistics
 
@@ -383,7 +388,9 @@ These throw `ERR_HEALTH_CONNECT_UNSUPPORTED` on Android. Health Connect has no e
 | --- | --- | --- |
 | Backend | HealthKit | Health Connect (`connect-client` 1.1) |
 | `isAvailable()` | HealthKit present | Health Connect installed (built-in on Android 14+; otherwise the Health Connect app) |
-| Read permission | Apple does **not** disclose read grants | `getAuthorizationStatus` reflects granted Health Connect read or write |
+| Read permission | Apple does **not** disclose read grants; `getGrantedPermissions` lists write grants only | `getAuthorizationStatus` reflects granted Health Connect read or write; `getGrantedPermissions` returns the raw permission strings |
+| Revoke | None (`revokeAllPermissions` throws `ERR_HEALTHKIT_UNSUPPORTED`) | `revokeAllPermissions()` |
+| Background reads | Observer queries / background delivery | `requestAuthorization({ includeBackgroundRead: true })` plus the plugin's `isHealthConnectBackgroundReadEnabled` |
 | Unmapped types in `requestAuthorization` | Forwarded if HealthKit knows them | Skipped |
 | History window | Granted samples, any age | Often last **30 days** unless the user also grants history access (the SDK requests it) |
 | Anchored sync | `HKQueryAnchor` (opaque string) | Health Connect changes token (opaque string). Do not reuse an iOS anchor on Android |

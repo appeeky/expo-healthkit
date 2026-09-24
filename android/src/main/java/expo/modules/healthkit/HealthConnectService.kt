@@ -78,12 +78,39 @@ internal class HealthConnectService(
     if (toRead.isNotEmpty()) {
       requested += androidx.health.connect.client.permission.HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY
     }
+    if (options["includeBackgroundRead"] == true) {
+      requested += androidx.health.connect.client.permission.HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
+    }
     val granted = client().permissionController.getGrantedPermissions()
     if (granted.containsAll(requested)) {
       return true
     }
     val result = requestPermissions(requested)
     return result.containsAll(permissions)
+  }
+
+  suspend fun grantedPermissions(): List<String> {
+    assertAvailable()
+    return client().permissionController.getGrantedPermissions().toList()
+  }
+
+  suspend fun revokeAllPermissions() {
+    assertAvailable()
+    client().permissionController.revokeAllPermissions()
+  }
+
+  /** Raw `android.permission.health.*` strings; resolves with the granted subset. */
+  suspend fun requestRawPermissions(permissions: List<String>): List<String> {
+    assertAvailable()
+    val requested = permissions.toSet()
+    if (requested.isEmpty()) {
+      return emptyList()
+    }
+    val granted = client().permissionController.getGrantedPermissions()
+    if (granted.containsAll(requested)) {
+      return requested.toList()
+    }
+    return requestPermissions(requested).filter { it in requested }
   }
 
   suspend fun authorizationStatus(identifier: String): Int {

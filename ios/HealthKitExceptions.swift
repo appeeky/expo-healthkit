@@ -60,6 +60,16 @@ internal final class EmptyCorrelationException: Exception, @unchecked Sendable {
   }
 }
 
+internal final class HealthKitUnsupportedException: GenericException<String>, @unchecked Sendable {
+  override var code: String {
+    "ERR_HEALTHKIT_UNSUPPORTED"
+  }
+
+  override var reason: String {
+    "\(param) is not available on iOS HealthKit"
+  }
+}
+
 internal final class HealthKitNativeException: GenericException<String>, @unchecked Sendable {
   override var code: String {
     "ERR_HEALTHKIT_NATIVE"

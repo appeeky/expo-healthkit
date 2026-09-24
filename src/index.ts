@@ -114,7 +114,39 @@ export async function requestAuthorization(options: AuthorizationOptions = {}): 
   return ExpoHealthKitModule.requestAuthorization({
     toRead: [...(options.toRead ?? [])],
     toShare: [...(options.toShare ?? [])],
+    includeBackgroundRead: options.includeBackgroundRead ?? false,
   });
+}
+
+/**
+ * Android: the granted Health Connect permissions, as raw
+ * `android.permission.health.*` strings. iOS: the identifiers this app is
+ * authorized to **write**; HealthKit does not disclose read grants.
+ */
+export async function getGrantedPermissions(): Promise<readonly string[]> {
+  assertAvailable();
+  return ExpoHealthKitModule.getGrantedPermissions([...IDENTIFIER_CANDIDATES]);
+}
+
+/**
+ * Android: revoke every Health Connect permission this app holds (an in-app
+ * "disconnect"). iOS throws `ERR_HEALTHKIT_UNSUPPORTED`; HealthKit has no revoke.
+ */
+export async function revokeAllPermissions(): Promise<void> {
+  assertAvailable();
+  await ExpoHealthKitModule.revokeAllPermissions();
+}
+
+/**
+ * Android: request raw `android.permission.health.*` strings and resolve with
+ * the granted subset. Use `requestAuthorization` for identifier-based requests.
+ * iOS throws `ERR_HEALTHKIT_UNSUPPORTED`.
+ */
+export async function requestPermissions(
+  permissions: readonly string[]
+): Promise<readonly string[]> {
+  assertAvailable();
+  return ExpoHealthKitModule.requestPermissions([...permissions]);
 }
 
 function supportedTypes(candidates: readonly string[]): readonly string[] {
@@ -622,6 +654,9 @@ const HealthKit = {
   requestAuthorization,
   getAuthorizationStatus,
   getRequestStatusForAuthorization,
+  getGrantedPermissions,
+  revokeAllPermissions,
+  requestPermissions,
   queryQuantitySamples,
   queryCategorySamples,
   queryWorkouts,

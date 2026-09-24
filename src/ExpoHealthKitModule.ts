@@ -42,6 +42,9 @@ declare class ExpoHealthKitModule extends NativeModule<ExpoHealthKitModuleEvents
   requestAuthorization(options: NativeAuthorizationOptions): Promise<boolean>;
   getAuthorizationStatus(identifier: string): Promise<number>;
   getRequestStatusForAuthorization(options: NativeAuthorizationOptions): Promise<number>;
+  getGrantedPermissions(candidates: string[]): Promise<string[]>;
+  revokeAllPermissions(): Promise<void>;
+  requestPermissions(permissions: string[]): Promise<string[]>;
   queryQuantitySamples(options: NativeQuantityQueryOptions): Promise<NativeQuantitySample[]>;
   queryCategorySamples(options: NativeCategoryQueryOptions): Promise<NativeCategorySample[]>;
   queryWorkouts(options: NativeWorkoutQueryOptions): Promise<NativeWorkoutSample[]>;

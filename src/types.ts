@@ -12,6 +12,11 @@ export type DateInput = Date | string;
 export interface AuthorizationOptions {
   toRead?: readonly ObjectType[];
   toShare?: readonly ObjectType[];
+  /**
+   * Android: also request `READ_HEALTH_DATA_IN_BACKGROUND`. Needs the plugin's
+   * `isHealthConnectBackgroundReadEnabled`. Ignored on iOS.
+   */
+  includeBackgroundRead?: boolean;
 }
 
 /**
@@ -363,6 +368,7 @@ export type ExpoHealthKitModuleEvents = {
 export interface NativeAuthorizationOptions {
   toRead: string[];
   toShare: string[];
+  includeBackgroundRead?: boolean;
 }
 
 export interface NativeSourceFilterOptions {
