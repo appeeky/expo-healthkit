@@ -77,7 +77,7 @@ npx expo run:android
 
 Enable the **HealthKit** capability on the App ID in the Apple Developer portal. The plugin writes the entitlement into the generated Xcode project; the capability still has to be allowed for that bundle ID.
 
-On Android, install [Health Connect](https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata) if the OS does not already include it (built-in on Android 14+). The plugin declares the Health Connect permissions and raises `minSdk` to 26.
+On Android, install [Health Connect](https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata) if the OS does not already include it (built-in on Android 14+). The plugin declares the Health Connect permissions (all mapped types by default; narrow with `healthConnectPermissions`) and raises `minSdk` to 26.
 
 ## ⚡️ Quick start
 
@@ -411,9 +411,19 @@ Do **not** fork mapped queries per platform. Fork only when you need different U
 | `isBackgroundDeliveryEnabled`     | `false`                                            | HealthKit background delivery entitlement + `UIBackgroundModes` |
 | `isClinicalDataEnabled`           | `false`                                            | `health-records` access                                         |
 | `healthConnectPrivacyPolicyUrl`   | —                                                  | Shown on the Health Connect permission rationale screen         |
+| `healthConnectPermissions`        | every permission the module maps (47, incl. `READ_HEALTH_DATA_HISTORY`) | Health Connect `uses-permission` entries to declare. `READ_STEPS` or `android.permission.health.READ_STEPS`. When set, **only** these are declared |
+| `isHealthConnectBackgroundReadEnabled` | `false`                                       | Declares `READ_HEALTH_DATA_IN_BACKGROUND` for `requestAuthorization({ includeBackgroundRead: true })` |
 
 
 The plugin also sets `android.minSdkVersion` to 26 (Health Connect’s floor) unless the project already uses a higher value.
+
+The plugin is the **only** place Health Connect permissions are declared; the module's own `AndroidManifest.xml` declares none. Play Console asks you to justify every declared Health Connect data type and the permission sheet shows the user the full list, so narrow it to what you query:
+
+```json
+["@appeeky/expo-healthkit", { "healthConnectPermissions": ["READ_STEPS", "READ_HEART_RATE", "READ_SLEEP", "READ_HEALTH_DATA_HISTORY"] }]
+```
+
+A type you query without declaring its permission is skipped at `requestAuthorization` and reads as empty. `HEALTH_CONNECT_PERMISSIONS` (exported from the plugin) is the default list.
 
 Set a permission string to `false` to skip writing that Info.plist key (if you manage it yourself).
 
