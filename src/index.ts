@@ -74,6 +74,20 @@ export type * from './types';
 
 const HK_UNLIMITED = 0;
 
+/** Every identifier this package exports a constant for. Native probes them. */
+const IDENTIFIER_CANDIDATES: readonly string[] = [
+  ...Object.values(QuantityType),
+  ...Object.values(CategoryType),
+  ...Object.values(CharacteristicType),
+  ...Object.values(CorrelationType),
+  ...Object.values(WorkoutType),
+  ...Object.values(ElectrocardiogramType),
+  ...Object.values(AudiogramType),
+  ...Object.values(SeriesType),
+  ...Object.values(ActivitySummaryType),
+  ...Object.values(ClinicalType),
+];
+
 function isHealthPlatform(): boolean {
   return Platform.OS === 'ios' || Platform.OS === 'android';
 }
@@ -101,6 +115,31 @@ export async function requestAuthorization(options: AuthorizationOptions = {}): 
     toRead: [...(options.toRead ?? [])],
     toShare: [...(options.toShare ?? [])],
   });
+}
+
+function supportedTypes(candidates: readonly string[]): readonly string[] {
+  if (!isHealthPlatform()) return [];
+  return ExpoHealthKitModule.getSupportedTypes([...candidates]);
+}
+
+/**
+ * Identifiers this platform can query or save. Static: no permission prompt,
+ * and on Android no Health Connect install is needed. iOS returns the exported
+ * identifiers HealthKit resolves on this OS version; Android returns the
+ * Health Connect mapping. Empty on web.
+ */
+export function getSupportedTypes(): readonly string[] {
+  return supportedTypes(IDENTIFIER_CANDIDATES);
+}
+
+/**
+ * The subset of `identifiers` this platform cannot provide. Android
+ * `requestAuthorization` skips these silently; check before prompting so the
+ * UI can say "unavailable on this phone" instead of "no data".
+ */
+export function getUnsupportedTypes(identifiers: readonly string[]): string[] {
+  const supported = new Set(supportedTypes(identifiers));
+  return identifiers.filter((identifier) => !supported.has(identifier));
 }
 
 export async function getAuthorizationStatus(type: string): Promise<AuthorizationStatus> {
@@ -578,6 +617,8 @@ export function useHealthKitUpdates(): HealthUpdateEvent | null {
 
 const HealthKit = {
   isAvailable,
+  getSupportedTypes,
+  getUnsupportedTypes,
   requestAuthorization,
   getAuthorizationStatus,
   getRequestStatusForAuthorization,

@@ -22,6 +22,10 @@ public class ExpoHealthKitModule: Module {
       self.service.isAvailable()
     }
 
+    Function("getSupportedTypes") { (candidates: [String]) in
+      self.service.supportedTypes(candidates)
+    }
+
     AsyncFunction("requestAuthorization") { (options: AuthorizationOptions) in
       try await self.service.requestAuthorization(options)
     }

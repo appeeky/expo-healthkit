@@ -131,6 +131,8 @@ const heartRate = await HealthKit.queryQuantitySamples({
 | Method                                                  | Notes                                                                                            |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `isAvailable()`                                         | `true` on iOS when HealthKit is present, and on Android when Health Connect is installed         |
+| `getSupportedTypes()`                                   | Identifiers this platform can provide. Static, no prompt. iOS: what HealthKit resolves on this OS; Android: the Health Connect mapping; web: `[]` |
+| `getUnsupportedTypes(identifiers)`                      | The subset of `identifiers` this platform cannot provide                                          |
 | `requestAuthorization({ toRead, toShare })`             | Shows the system permission sheet (HealthKit or Health Connect)                                  |
 | `getAuthorizationStatus(type)`                          | iOS: reliable for **write** types. Android: reflects granted Health Connect read or write access |
 | `getRequestStatusForAuthorization({ toRead, toShare })` | Whether you still need to prompt                                                                 |
@@ -321,7 +323,17 @@ flowchart LR
   API --> Android["Android<br/>Health Connect"]
 ```
 
-Mapped types (steps, heart rate, sleep, workouts, weight, blood pressure, nutrition, …) use the **same method and identifier** on both platforms. Unmapped identifiers are skipped in Android `requestAuthorization`. Calling an Apple-only method on Android throws `ERR_HEALTH_CONNECT_UNSUPPORTED` instead of requiring `if (Platform.OS === 'ios')` on every query.
+Mapped types (steps, heart rate, sleep, workouts, weight, blood pressure, nutrition, …) use the **same method and identifier** on both platforms. Unmapped identifiers are skipped in Android `requestAuthorization`, so an unsupported type and an empty one look alike; ask first:
+
+```ts
+const missing = HealthKit.getUnsupportedTypes([
+  HealthKit.QuantityType.vo2Max,
+  HealthKit.QuantityType.appleExerciseTime,
+]);
+// Android: ['HKQuantityTypeIdentifierAppleExerciseTime'] — say "not on this phone", not "no data"
+```
+
+Calling an Apple-only method on Android throws `ERR_HEALTH_CONNECT_UNSUPPORTED` instead of requiring `if (Platform.OS === 'ios')` on every query.
 
 Hide Apple-only UI by catching that code:
 

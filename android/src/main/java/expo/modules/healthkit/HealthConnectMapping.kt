@@ -57,6 +57,45 @@ internal object HealthConnectMapping {
   const val BLOOD_PRESSURE = "HKCorrelationTypeIdentifierBloodPressure"
   const val FOOD = "HKCorrelationTypeIdentifierFood"
 
+  /**
+   * Every identifier `recordClass` resolves by name. Any
+   * `HKQuantityTypeIdentifierDietary*` identifier also resolves (to
+   * `NutritionRecord`); `supportedTypes` picks those up from the candidates.
+   */
+  val SUPPORTED_TYPES: List<String> = listOf(
+    STEPS,
+    DISTANCE_WALKING,
+    DISTANCE_CYCLING,
+    DISTANCE_SWIMMING,
+    DISTANCE_WHEELCHAIR,
+    ACTIVE_ENERGY,
+    BASAL_ENERGY,
+    FLOORS,
+    PUSH_COUNT,
+    VO2_MAX,
+    HEART_RATE,
+    RESTING_HEART_RATE,
+    HRV,
+    OXYGEN,
+    RESPIRATORY,
+    BODY_TEMP,
+    GLUCOSE,
+    SYSTOLIC,
+    DIASTOLIC,
+    HEIGHT,
+    WEIGHT,
+    LEAN_MASS,
+    BODY_FAT,
+    WATER,
+    SLEEP,
+    WORKOUT,
+    BLOOD_PRESSURE,
+    FOOD
+  )
+
+  fun supportedTypes(candidates: List<String>): List<String> =
+    (SUPPORTED_TYPES + candidates.filter { recordClass(it) != null }).distinct()
+
   fun recordClass(identifier: String): KClass<out Record>? = when (identifier) {
     STEPS -> StepsRecord::class
     DISTANCE_WALKING, DISTANCE_CYCLING, DISTANCE_SWIMMING, DISTANCE_WHEELCHAIR -> DistanceRecord::class

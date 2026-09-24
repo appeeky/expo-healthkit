@@ -21,6 +21,11 @@ internal final class HealthKitService {
     HKHealthStore.isHealthDataAvailable()
   }
 
+  /// The candidates HealthKit resolves on this OS version. No store access needed.
+  func supportedTypes(_ candidates: [String]) -> [String] {
+    candidates.filter { (try? HealthKitIdentifiers.objectType(for: $0)) != nil }
+  }
+
   func requestAuthorization(_ options: AuthorizationOptions) async throws -> Bool {
     try ensureAvailable()
 

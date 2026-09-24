@@ -46,6 +46,10 @@ class ExpoHealthKitModule : Module() {
       HealthConnectService.isAvailable(appContext.reactContext)
     }
 
+    Function("getSupportedTypes") { candidates: List<String> ->
+      HealthConnectMapping.supportedTypes(candidates)
+    }
+
     AsyncFunction("requestAuthorization") Coroutine { options: Map<String, Any?> ->
       service.requestAuthorization(options)
     }

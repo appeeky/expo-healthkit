@@ -38,6 +38,7 @@ import type {
 
 declare class ExpoHealthKitModule extends NativeModule<ExpoHealthKitModuleEvents> {
   isHealthDataAvailable(): boolean;
+  getSupportedTypes(candidates: string[]): string[];
   requestAuthorization(options: NativeAuthorizationOptions): Promise<boolean>;
   getAuthorizationStatus(identifier: string): Promise<number>;
   getRequestStatusForAuthorization(options: NativeAuthorizationOptions): Promise<number>;

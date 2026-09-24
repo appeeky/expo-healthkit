@@ -12,6 +12,10 @@ class ExpoHealthKitModule extends NativeModule<ExpoHealthKitModuleEvents> {
     return false;
   }
 
+  getSupportedTypes(): string[] {
+    return [];
+  }
+
   async requestAuthorization(): Promise<boolean> {
     return unavailable();
   }
