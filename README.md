@@ -369,7 +369,7 @@ Do **not** fork mapped queries per platform. Fork only when you need different U
 | `healthSharePermission`           | `"Allow $(PRODUCT_NAME) to read your health data"` | `NSHealthShareUsageDescription`                                 |
 | `healthUpdatePermission`          | `"Allow $(PRODUCT_NAME) to write health data"`     | `NSHealthUpdateUsageDescription`                                |
 | `healthClinicalRecordsPermission` | clinical default                                   | Used when `isClinicalDataEnabled` is true                       |
-| `isBackgroundDeliveryEnabled`     | `false`                                            | HealthKit background delivery entitlement + `UIBackgroundModes` |
+| `isBackgroundDeliveryEnabled`     | `false`                                            | HealthKit background delivery entitlement |
 | `isClinicalDataEnabled`           | `false`                                            | `health-records` access                                         |
 | `healthConnectPrivacyPolicyUrl`   | —                                                  | Shown on the Health Connect permission rationale screen         |
 

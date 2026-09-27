@@ -6,7 +6,6 @@ import {
   withAndroidManifest,
   withEntitlementsPlist,
   withGradleProperties,
-  withInfoPlist,
 } from 'expo/config-plugins';
 
 const pkg = require('../../package.json');
@@ -84,7 +83,7 @@ export interface ExpoHealthKitPluginProps {
    */
   healthClinicalRecordsPermission?: string | false;
   /**
-   * Adds the HealthKit background-delivery entitlement and `healthkit` UIBackgroundModes.
+   * Adds the HealthKit background-delivery entitlement.
    */
   isBackgroundDeliveryEnabled?: boolean;
   /**
@@ -109,24 +108,6 @@ const withHealthKitEntitlements: ConfigPlugin<ExpoHealthKitPluginProps> = (confi
       config.modResults['com.apple.developer.healthkit.access'] = ['health-records'];
     }
 
-    return config;
-  });
-};
-
-const withHealthKitBackgroundModes: ConfigPlugin<ExpoHealthKitPluginProps> = (
-  config,
-  props = {}
-) => {
-  if (!props.isBackgroundDeliveryEnabled) {
-    return config;
-  }
-
-  return withInfoPlist(config, (config) => {
-    const modes = new Set<string>(
-      Array.isArray(config.modResults.UIBackgroundModes) ? config.modResults.UIBackgroundModes : []
-    );
-    modes.add('healthkit');
-    config.modResults.UIBackgroundModes = [...modes];
     return config;
   });
 };
@@ -206,7 +187,6 @@ const withHealthConnectManifest: ConfigPlugin<ExpoHealthKitPluginProps> = (confi
 const withExpoHealthKit: ConfigPlugin<ExpoHealthKitPluginProps | void> = (config, props) => {
   const pluginProps = props ?? {};
   config = withHealthKitEntitlements(config, pluginProps);
-  config = withHealthKitBackgroundModes(config, pluginProps);
   config = withHealthKitUsageDescriptions(config, pluginProps);
   config = withHealthConnectMinSdk(config);
   config = withHealthConnectManifest(config, pluginProps);
