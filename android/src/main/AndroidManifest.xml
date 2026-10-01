@@ -3,53 +3,10 @@
     <package android:name="com.google.android.apps.healthdata" />
   </queries>
 
-  <uses-permission android:name="android.permission.health.READ_STEPS" />
-  <uses-permission android:name="android.permission.health.WRITE_STEPS" />
-  <uses-permission android:name="android.permission.health.READ_DISTANCE" />
-  <uses-permission android:name="android.permission.health.WRITE_DISTANCE" />
-  <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
-  <uses-permission android:name="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED" />
-  <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
-  <uses-permission android:name="android.permission.health.WRITE_TOTAL_CALORIES_BURNED" />
-  <uses-permission android:name="android.permission.health.READ_FLOORS_CLIMBED" />
-  <uses-permission android:name="android.permission.health.WRITE_FLOORS_CLIMBED" />
-  <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
-  <uses-permission android:name="android.permission.health.WRITE_HEART_RATE" />
-  <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
-  <uses-permission android:name="android.permission.health.WRITE_RESTING_HEART_RATE" />
-  <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
-  <uses-permission android:name="android.permission.health.WRITE_HEART_RATE_VARIABILITY" />
-  <uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION" />
-  <uses-permission android:name="android.permission.health.WRITE_OXYGEN_SATURATION" />
-  <uses-permission android:name="android.permission.health.READ_RESPIRATORY_RATE" />
-  <uses-permission android:name="android.permission.health.WRITE_RESPIRATORY_RATE" />
-  <uses-permission android:name="android.permission.health.READ_BODY_TEMPERATURE" />
-  <uses-permission android:name="android.permission.health.WRITE_BODY_TEMPERATURE" />
-  <uses-permission android:name="android.permission.health.READ_BLOOD_GLUCOSE" />
-  <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE" />
-  <uses-permission android:name="android.permission.health.READ_BLOOD_PRESSURE" />
-  <uses-permission android:name="android.permission.health.WRITE_BLOOD_PRESSURE" />
-  <uses-permission android:name="android.permission.health.READ_VO2_MAX" />
-  <uses-permission android:name="android.permission.health.WRITE_VO2_MAX" />
-  <uses-permission android:name="android.permission.health.READ_HEIGHT" />
-  <uses-permission android:name="android.permission.health.WRITE_HEIGHT" />
-  <uses-permission android:name="android.permission.health.READ_WEIGHT" />
-  <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
-  <uses-permission android:name="android.permission.health.READ_BODY_FAT" />
-  <uses-permission android:name="android.permission.health.WRITE_BODY_FAT" />
-  <uses-permission android:name="android.permission.health.READ_LEAN_BODY_MASS" />
-  <uses-permission android:name="android.permission.health.WRITE_LEAN_BODY_MASS" />
-  <uses-permission android:name="android.permission.health.READ_SLEEP" />
-  <uses-permission android:name="android.permission.health.WRITE_SLEEP" />
-  <uses-permission android:name="android.permission.health.READ_EXERCISE" />
-  <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
-  <uses-permission android:name="android.permission.health.READ_NUTRITION" />
-  <uses-permission android:name="android.permission.health.WRITE_NUTRITION" />
-  <uses-permission android:name="android.permission.health.READ_HYDRATION" />
-  <uses-permission android:name="android.permission.health.WRITE_HYDRATION" />
-  <uses-permission android:name="android.permission.health.READ_WHEELCHAIR_PUSHES" />
-  <uses-permission android:name="android.permission.health.WRITE_WHEELCHAIR_PUSHES" />
-  <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+  <!--
+    Health Connect uses-permission entries are declared by the config plugin
+    (`healthConnectPermissions`), not here, so an app can narrow the list.
+  -->
 
   <application>
     <activity

@@ -21,6 +21,11 @@ internal final class HealthKitService {
     HKHealthStore.isHealthDataAvailable()
   }
 
+  /// The candidates HealthKit resolves on this OS version. No store access needed.
+  func supportedTypes(_ candidates: [String]) -> [String] {
+    candidates.filter { (try? HealthKitIdentifiers.objectType(for: $0)) != nil }
+  }
+
   func requestAuthorization(_ options: AuthorizationOptions) async throws -> Bool {
     try ensureAvailable()
 
@@ -48,6 +53,21 @@ internal final class HealthKitService {
     return Int(store.authorizationStatus(for: type).rawValue)
   }
 
+  /// Identifiers this app may write. HealthKit never discloses read grants.
+  func grantedPermissions(candidates: [String]) throws -> [String] {
+    try ensureAvailable()
+    return candidates.filter { identifier in
+      guard let type = try? HealthKitIdentifiers.objectType(for: identifier) else {
+        return false
+      }
+      return store.authorizationStatus(for: type) == .sharingAuthorized
+    }
+  }
+
+  func unsupported(_ feature: String) throws {
+    throw HealthKitUnsupportedException(feature)
+  }
+
   func requestStatusForAuthorization(_ options: AuthorizationOptions) async throws -> Int {
     try ensureAvailable()
     let readTypes = Set(try options.toRead.map { try HealthKitIdentifiers.objectType(for: $0) })
@@ -73,7 +93,9 @@ internal final class HealthKitService {
       from: options.from,
       to: options.to,
       limit: options.limit,
-      ascending: options.ascending
+      ascending: options.ascending,
+      sources: options.sources,
+      excludeSources: options.excludeSources
     )
 
     return samples.compactMap { sample in
@@ -92,7 +114,9 @@ internal final class HealthKitService {
       from: options.from,
       to: options.to,
       limit: options.limit,
-      ascending: options.ascending
+      ascending: options.ascending,
+      sources: options.sources,
+      excludeSources: options.excludeSources
     )
 
     return samples.compactMap { sample in
@@ -105,7 +129,14 @@ internal final class HealthKitService {
 
   func queryWorkouts(_ options: WorkoutQueryOptions) async throws -> [[String: Any]] {
     try ensureAvailable()
-    var predicate = try samplePredicate(from: options.from, to: options.to)
+    let workoutType = HKObjectType.workoutType()
+    var predicate = try await samplePredicate(
+      sampleType: workoutType,
+      from: options.from,
+      to: options.to,
+      sources: options.sources,
+      excludeSources: options.excludeSources
+    )
     if let activityTypeRaw = options.activityType,
       let activityType = HKWorkoutActivityType(rawValue: UInt(activityTypeRaw))
     {
@@ -114,7 +145,7 @@ internal final class HealthKitService {
     }
 
     let samples = try await executeSampleQuery(
-      sampleType: HKObjectType.workoutType(),
+      sampleType: workoutType,
       predicate: predicate,
       limit: HealthKitIdentifiers.queryLimit(options.limit),
       ascending: options.ascending
@@ -132,7 +163,13 @@ internal final class HealthKitService {
     try ensureAvailable()
     let quantityType = try HealthKitIdentifiers.quantityType(for: options.type)
     let unit = try HealthKitIdentifiers.unit(from: options.unit)
-    let predicate = try samplePredicate(from: options.from, to: options.to)
+    let predicate = try await samplePredicate(
+      sampleType: quantityType,
+      from: options.from,
+      to: options.to,
+      sources: options.sources,
+      excludeSources: options.excludeSources
+    )
     let statisticsOptions = HealthKitIdentifiers.statisticsOptions(from: options.options, quantityType: quantityType)
 
     let statistics: HKStatistics? = try await withCheckedThrowingContinuation { continuation in
@@ -173,11 +210,16 @@ internal final class HealthKitService {
     let statisticsOptions = HealthKitIdentifiers.statisticsOptions(from: options.options, quantityType: quantityType)
     let interval = dateComponents(from: options)
     let anchorDate = Calendar.current.startOfDay(for: from == Date.distantPast ? to : from)
+    let predicate = try await sourcePredicate(
+      sampleType: quantityType,
+      sources: options.sources,
+      excludeSources: options.excludeSources
+    )
 
     let collection: HKStatisticsCollection? = try await withCheckedThrowingContinuation { continuation in
       let query = HKStatisticsCollectionQuery(
         quantityType: quantityType,
-        quantitySamplePredicate: nil,
+        quantitySamplePredicate: predicate,
         options: statisticsOptions,
         anchorDate: anchorDate,
         intervalComponents: interval
@@ -202,7 +244,13 @@ internal final class HealthKitService {
   func queryAnchored(_ options: AnchoredQueryOptions) async throws -> [String: Any] {
     try ensureAvailable()
     let sampleType = try HealthKitIdentifiers.sampleType(for: options.type)
-    let predicate = try samplePredicate(from: options.from, to: options.to)
+    let predicate = try await samplePredicate(
+      sampleType: sampleType,
+      from: options.from,
+      to: options.to,
+      sources: options.sources,
+      excludeSources: options.excludeSources
+    )
     let anchor = try HealthKitIdentifiers.decodeAnchor(options.anchor)
     let unit = try options.unit.map { try HealthKitIdentifiers.unit(from: $0) }
 
@@ -440,11 +488,20 @@ internal final class HealthKitService {
     from: String?,
     to: String?,
     limit: Int,
-    ascending: Bool
+    ascending: Bool,
+    sources: [String]? = nil,
+    excludeSources: [String]? = nil
   ) async throws -> [HKSample] {
-    try await executeSampleQuery(
+    let predicate = try await samplePredicate(
       sampleType: sampleType,
-      predicate: try samplePredicate(from: from, to: to),
+      from: from,
+      to: to,
+      sources: sources,
+      excludeSources: excludeSources
+    )
+    return try await executeSampleQuery(
+      sampleType: sampleType,
+      predicate: predicate,
       limit: HealthKitIdentifiers.queryLimit(limit),
       ascending: ascending
     )
@@ -482,6 +539,102 @@ internal final class HealthKitService {
     }
     return try catchingHealthKit {
       HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+    }
+  }
+
+  /// Date predicate AND source predicate. Either half may be absent.
+  func samplePredicate(
+    sampleType: HKSampleType,
+    from: String?,
+    to: String?,
+    sources: [String]?,
+    excludeSources: [String]?
+  ) async throws -> NSPredicate? {
+    let datePredicate = try samplePredicate(from: from, to: to)
+    let sourcePredicate = try await sourcePredicate(
+      sampleType: sampleType,
+      sources: sources,
+      excludeSources: excludeSources
+    )
+    let predicates = [datePredicate, sourcePredicate].compactMap { $0 }
+    if predicates.isEmpty {
+      return nil
+    }
+    if predicates.count == 1 {
+      return predicates[0]
+    }
+    return NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+  }
+
+  /// `sources` keeps only samples written by those apps; `excludeSources` drops
+  /// them. Both resolve bundle identifiers against the `HKSource`s that have
+  /// written `sampleType`; `"self"` is `HKSource.default()`. Applied by
+  /// HealthKit, so it runs before the query `limit`.
+  func sourcePredicate(
+    sampleType: HKSampleType,
+    sources: [String]?,
+    excludeSources: [String]?
+  ) async throws -> NSPredicate? {
+    let include = sources ?? []
+    let exclude = excludeSources ?? []
+    if include.isEmpty && exclude.isEmpty {
+      return nil
+    }
+
+    let known = try await sourcesWritingSamples(of: sampleType)
+    var predicates: [NSPredicate] = []
+    if !include.isEmpty {
+      let included = resolveSources(include, known: known)
+      if included.isEmpty {
+        // None of the requested apps has written this type. Match nothing rather
+        // than hand HealthKit an empty source set.
+        return HKQuery.predicateForObject(with: UUID())
+      }
+      predicates.append(try catchingHealthKit { HKQuery.predicateForObjects(from: included) })
+    }
+    if !exclude.isEmpty {
+      let excluded = resolveSources(exclude, known: known)
+      if !excluded.isEmpty {
+        let excludedPredicate = try catchingHealthKit { HKQuery.predicateForObjects(from: excluded) }
+        predicates.append(NSCompoundPredicate(notPredicateWithSubpredicate: excludedPredicate))
+      }
+    }
+    if predicates.isEmpty {
+      return nil
+    }
+    if predicates.count == 1 {
+      return predicates[0]
+    }
+    return NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+  }
+
+  private func resolveSources(_ identifiers: [String], known: Set<HKSource>) -> Set<HKSource> {
+    let selfSource = HKSource.default()
+    var resolved = Set<HKSource>()
+    for identifier in identifiers {
+      if identifier == "self" || identifier == selfSource.bundleIdentifier {
+        resolved.insert(selfSource)
+        continue
+      }
+      resolved.formUnion(known.filter { $0.bundleIdentifier == identifier })
+    }
+    return resolved
+  }
+
+  private func sourcesWritingSamples(of sampleType: HKSampleType) async throws -> Set<HKSource> {
+    try await withCheckedThrowingContinuation { continuation in
+      let query = HKSourceQuery(sampleType: sampleType, samplePredicate: nil) { _, sources, error in
+        if let error {
+          continuation.resume(throwing: error)
+        } else {
+          continuation.resume(returning: sources ?? [])
+        }
+      }
+      do {
+        try executeQuery(query)
+      } catch {
+        continuation.resume(throwing: error)
+      }
     }
   }
 
@@ -523,6 +676,10 @@ internal final class HealthKitService {
     record["sourceName"] = sample.sourceRevision.source.name
     record["sourceId"] = sample.sourceRevision.source.bundleIdentifier
     record["metadata"] = HealthKitIdentifiers.stringifyMetadata(sample.metadata)
+    if sample.quantityType.identifier == HKQuantityTypeIdentifier.heartRateVariabilitySDNN.rawValue {
+      // Health Connect maps RMSSD onto the same identifier; let callers tell them apart.
+      record["statistic"] = "sdnn"
+    }
     return record
   }
 

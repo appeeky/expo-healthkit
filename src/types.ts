@@ -12,9 +12,26 @@ export type DateInput = Date | string;
 export interface AuthorizationOptions {
   toRead?: readonly ObjectType[];
   toShare?: readonly ObjectType[];
+  /**
+   * Android: also request `READ_HEALTH_DATA_IN_BACKGROUND`. Needs the plugin's
+   * `isHealthConnectBackgroundReadEnabled`. Ignored on iOS.
+   */
+  includeBackgroundRead?: boolean;
 }
 
-export interface SampleQueryOptions {
+/**
+ * Restrict a query to (or away from) the apps that wrote the samples. Both
+ * filters are applied natively, before `limit`, so a capped query never comes
+ * back short because the excluded rows used up the cap.
+ */
+export interface SourceFilterOptions {
+  /** Include only samples from these sources: iOS bundle identifiers, Android package names. */
+  sources?: readonly string[];
+  /** Exclude these sources. `'self'` is this app. */
+  excludeSources?: readonly (string | 'self')[];
+}
+
+export interface SampleQueryOptions extends SourceFilterOptions {
   type: ObjectType;
   from?: DateInput;
   to?: DateInput;
@@ -26,7 +43,7 @@ export interface QuantityQueryOptions extends SampleQueryOptions {
   unit: string;
 }
 
-export interface WorkoutQueryOptions {
+export interface WorkoutQueryOptions extends SourceFilterOptions {
   from?: DateInput;
   to?: DateInput;
   limit?: number;
@@ -34,7 +51,11 @@ export interface WorkoutQueryOptions {
   activityType?: WorkoutActivityType;
 }
 
-export interface StatisticsQueryOptions {
+/**
+ * `excludeSources` is not supported for statistics on Android (Health Connect
+ * aggregates only take an include filter); it throws `ERR_HEALTH_CONNECT_UNSUPPORTED`.
+ */
+export interface StatisticsQueryOptions extends SourceFilterOptions {
   type: ObjectType;
   unit: string;
   from?: DateInput;
@@ -97,7 +118,7 @@ export interface DeleteObjectsOptions {
   to?: DateInput;
 }
 
-export interface DateRangeQueryOptions {
+export interface DateRangeQueryOptions extends SourceFilterOptions {
   from?: DateInput;
   to?: DateInput;
   limit?: number;
@@ -175,6 +196,12 @@ export interface HeartbeatSeriesSample {
   metadata?: Record<string, string>;
 }
 
+/**
+ * Which HRV statistic a `heartRateVariabilitySDNN` sample carries. HealthKit
+ * stores SDNN; Health Connect stores RMSSD, mapped onto the same identifier.
+ */
+export type HeartRateVariabilityStatistic = 'sdnn' | 'rmssd';
+
 export interface QuantitySample {
   uuid: string;
   type: string;
@@ -185,6 +212,8 @@ export interface QuantitySample {
   sourceName?: string;
   sourceId?: string;
   metadata?: Record<string, string>;
+  /** Set on `heartRateVariabilitySDNN` samples only: `'sdnn'` on iOS, `'rmssd'` on Android. */
+  statistic?: HeartRateVariabilityStatistic;
 }
 
 export interface CategorySample {
@@ -339,9 +368,15 @@ export type ExpoHealthKitModuleEvents = {
 export interface NativeAuthorizationOptions {
   toRead: string[];
   toShare: string[];
+  includeBackgroundRead?: boolean;
 }
 
-export interface NativeQuantityQueryOptions {
+export interface NativeSourceFilterOptions {
+  sources?: string[];
+  excludeSources?: string[];
+}
+
+export interface NativeQuantityQueryOptions extends NativeSourceFilterOptions {
   type: string;
   unit: string;
   from?: string;
@@ -350,7 +385,7 @@ export interface NativeQuantityQueryOptions {
   ascending: boolean;
 }
 
-export interface NativeCategoryQueryOptions {
+export interface NativeCategoryQueryOptions extends NativeSourceFilterOptions {
   type: string;
   from?: string;
   to?: string;
@@ -358,7 +393,7 @@ export interface NativeCategoryQueryOptions {
   ascending: boolean;
 }
 
-export interface NativeWorkoutQueryOptions {
+export interface NativeWorkoutQueryOptions extends NativeSourceFilterOptions {
   from?: string;
   to?: string;
   limit: number;
@@ -366,7 +401,7 @@ export interface NativeWorkoutQueryOptions {
   activityType?: number;
 }
 
-export interface NativeStatisticsQueryOptions {
+export interface NativeStatisticsQueryOptions extends NativeSourceFilterOptions {
   type: string;
   unit: string;
   from?: string;
@@ -383,7 +418,7 @@ export interface NativeStatisticsCollectionQueryOptions extends NativeStatistics
   second: number;
 }
 
-export interface NativeAnchoredQueryOptions {
+export interface NativeAnchoredQueryOptions extends NativeSourceFilterOptions {
   type: string;
   unit?: string;
   from?: string;
@@ -437,6 +472,7 @@ export interface NativeQuantitySample {
   sourceName?: string;
   sourceId?: string;
   metadata?: Record<string, string>;
+  statistic?: HeartRateVariabilityStatistic;
 }
 
 export interface NativeCategorySample {
@@ -488,7 +524,7 @@ export interface NativeAnchoredQueryResult {
   anchor?: string;
 }
 
-export interface NativeDateRangeQueryOptions {
+export interface NativeDateRangeQueryOptions extends NativeSourceFilterOptions {
   from?: string;
   to?: string;
   limit: number;

@@ -3,6 +3,8 @@ import ExpoModulesCore
 internal struct AuthorizationOptions: Record {
   @Field var toRead: [String] = []
   @Field var toShare: [String] = []
+  /// Android only (Health Connect background reads). Accepted and ignored here.
+  @Field var includeBackgroundRead: Bool = false
 }
 
 internal struct QuantityQueryOptions: Record {
@@ -12,6 +14,8 @@ internal struct QuantityQueryOptions: Record {
   @Field var to: String?
   @Field var limit: Int = 0
   @Field var ascending: Bool = false
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct CategoryQueryOptions: Record {
@@ -20,6 +24,8 @@ internal struct CategoryQueryOptions: Record {
   @Field var to: String?
   @Field var limit: Int = 0
   @Field var ascending: Bool = false
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct WorkoutQueryOptions: Record {
@@ -28,6 +34,8 @@ internal struct WorkoutQueryOptions: Record {
   @Field var limit: Int = 0
   @Field var ascending: Bool = false
   @Field var activityType: Int?
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct StatisticsQueryOptions: Record {
@@ -36,6 +44,8 @@ internal struct StatisticsQueryOptions: Record {
   @Field var from: String?
   @Field var to: String?
   @Field var options: Int = 0
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct StatisticsCollectionQueryOptions: Record {
@@ -50,6 +60,8 @@ internal struct StatisticsCollectionQueryOptions: Record {
   @Field var hour: Int = 0
   @Field var minute: Int = 0
   @Field var second: Int = 0
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct AnchoredQueryOptions: Record {
@@ -59,6 +71,8 @@ internal struct AnchoredQueryOptions: Record {
   @Field var to: String?
   @Field var limit: Int = 0
   @Field var anchor: String?
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct QuantitySampleInput: Record {
@@ -101,6 +115,8 @@ internal struct DateRangeQueryOptions: Record {
   @Field var to: String?
   @Field var limit: Int = 0
   @Field var ascending: Bool = false
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct ElectrocardiogramQueryOptions: Record {
@@ -109,6 +125,8 @@ internal struct ElectrocardiogramQueryOptions: Record {
   @Field var limit: Int = 0
   @Field var ascending: Bool = false
   @Field var includeVoltage: Bool = false
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct ActivitySummaryQueryOptions: Record {
@@ -122,6 +140,8 @@ internal struct ClinicalRecordQueryOptions: Record {
   @Field var to: String?
   @Field var limit: Int = 0
   @Field var ascending: Bool = false
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct WorkoutRouteQueryOptions: Record {
@@ -134,6 +154,8 @@ internal struct CorrelationQueryOptions: Record {
   @Field var to: String?
   @Field var limit: Int = 0
   @Field var ascending: Bool = false
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct CorrelationInput: Record {
@@ -150,6 +172,8 @@ internal struct HeartbeatSeriesQueryOptions: Record {
   @Field var limit: Int = 0
   @Field var ascending: Bool = false
   @Field var includeBeats: Bool = true
+  @Field var sources: [String]?
+  @Field var excludeSources: [String]?
 }
 
 internal struct QuantitySampleRecord: Record {
@@ -162,6 +186,7 @@ internal struct QuantitySampleRecord: Record {
   @Field var sourceName: String?
   @Field var sourceId: String?
   @Field var metadata: [String: String]?
+  @Field var statistic: String?
 }
 
 internal struct CategorySampleRecord: Record {

@@ -22,6 +22,10 @@ public class ExpoHealthKitModule: Module {
       self.service.isAvailable()
     }
 
+    Function("getSupportedTypes") { (candidates: [String]) in
+      self.service.supportedTypes(candidates)
+    }
+
     AsyncFunction("requestAuthorization") { (options: AuthorizationOptions) in
       try await self.service.requestAuthorization(options)
     }
@@ -32,6 +36,18 @@ public class ExpoHealthKitModule: Module {
 
     AsyncFunction("getRequestStatusForAuthorization") { (options: AuthorizationOptions) in
       try await self.service.requestStatusForAuthorization(options)
+    }
+
+    AsyncFunction("getGrantedPermissions") { (candidates: [String]) in
+      try self.service.grantedPermissions(candidates: candidates)
+    }
+
+    AsyncFunction("revokeAllPermissions") {
+      try self.service.unsupported("revokeAllPermissions")
+    }
+
+    AsyncFunction("requestPermissions") { (_: [String]) in
+      try self.service.unsupported("requestPermissions")
     }
 
     AsyncFunction("queryQuantitySamples") { (options: QuantityQueryOptions) in

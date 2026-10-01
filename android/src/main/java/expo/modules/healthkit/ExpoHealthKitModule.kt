@@ -46,6 +46,10 @@ class ExpoHealthKitModule : Module() {
       HealthConnectService.isAvailable(appContext.reactContext)
     }
 
+    Function("getSupportedTypes") { candidates: List<String> ->
+      HealthConnectMapping.supportedTypes(candidates)
+    }
+
     AsyncFunction("requestAuthorization") Coroutine { options: Map<String, Any?> ->
       service.requestAuthorization(options)
     }
@@ -56,6 +60,18 @@ class ExpoHealthKitModule : Module() {
 
     AsyncFunction("getRequestStatusForAuthorization") Coroutine { options: Map<String, Any?> ->
       service.requestStatusForAuthorization(options)
+    }
+
+    AsyncFunction("getGrantedPermissions") Coroutine { _: List<String> ->
+      service.grantedPermissions()
+    }
+
+    AsyncFunction("revokeAllPermissions") Coroutine { ->
+      service.revokeAllPermissions()
+    }
+
+    AsyncFunction("requestPermissions") Coroutine { permissions: List<String> ->
+      service.requestRawPermissions(permissions)
     }
 
     AsyncFunction("queryQuantitySamples") Coroutine { options: Map<String, Any?> ->

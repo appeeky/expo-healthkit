@@ -52,9 +52,11 @@ import type {
   HeartbeatSeriesQueryOptions,
   HeartbeatSeriesSample,
   NativeHealthUpdateEvent,
+  NativeQuantitySample,
   QuantityQueryOptions,
   QuantitySample,
   SampleQueryOptions,
+  SourceFilterOptions,
   QuantitySampleInput,
   Statistics,
   StatisticsCollectionQueryOptions,
@@ -72,6 +74,20 @@ export type * from './types';
 
 const HK_UNLIMITED = 0;
 
+/** Every identifier this package exports a constant for. Native probes them. */
+const IDENTIFIER_CANDIDATES: readonly string[] = [
+  ...Object.values(QuantityType),
+  ...Object.values(CategoryType),
+  ...Object.values(CharacteristicType),
+  ...Object.values(CorrelationType),
+  ...Object.values(WorkoutType),
+  ...Object.values(ElectrocardiogramType),
+  ...Object.values(AudiogramType),
+  ...Object.values(SeriesType),
+  ...Object.values(ActivitySummaryType),
+  ...Object.values(ClinicalType),
+];
+
 function isHealthPlatform(): boolean {
   return Platform.OS === 'ios' || Platform.OS === 'android';
 }
@@ -86,12 +102,76 @@ export function isAvailable(): boolean {
   return isHealthPlatform() && ExpoHealthKitModule.isHealthDataAvailable();
 }
 
+function sourceFilters(options: SourceFilterOptions) {
+  return {
+    sources: options.sources ? [...options.sources] : undefined,
+    excludeSources: options.excludeSources ? [...options.excludeSources] : undefined,
+  };
+}
+
 export async function requestAuthorization(options: AuthorizationOptions = {}): Promise<boolean> {
   assertAvailable();
   return ExpoHealthKitModule.requestAuthorization({
     toRead: [...(options.toRead ?? [])],
     toShare: [...(options.toShare ?? [])],
+    includeBackgroundRead: options.includeBackgroundRead ?? false,
   });
+}
+
+/**
+ * Android: the granted Health Connect permissions, as raw
+ * `android.permission.health.*` strings. iOS: the identifiers this app is
+ * authorized to **write**; HealthKit does not disclose read grants.
+ */
+export async function getGrantedPermissions(): Promise<readonly string[]> {
+  assertAvailable();
+  return ExpoHealthKitModule.getGrantedPermissions([...IDENTIFIER_CANDIDATES]);
+}
+
+/**
+ * Android: revoke every Health Connect permission this app holds (an in-app
+ * "disconnect"). iOS throws `ERR_HEALTHKIT_UNSUPPORTED`; HealthKit has no revoke.
+ */
+export async function revokeAllPermissions(): Promise<void> {
+  assertAvailable();
+  await ExpoHealthKitModule.revokeAllPermissions();
+}
+
+/**
+ * Android: request raw `android.permission.health.*` strings and resolve with
+ * the granted subset. Use `requestAuthorization` for identifier-based requests.
+ * iOS throws `ERR_HEALTHKIT_UNSUPPORTED`.
+ */
+export async function requestPermissions(
+  permissions: readonly string[]
+): Promise<readonly string[]> {
+  assertAvailable();
+  return ExpoHealthKitModule.requestPermissions([...permissions]);
+}
+
+function supportedTypes(candidates: readonly string[]): readonly string[] {
+  if (!isHealthPlatform()) return [];
+  return ExpoHealthKitModule.getSupportedTypes([...candidates]);
+}
+
+/**
+ * Identifiers this platform can query or save. Static: no permission prompt,
+ * and on Android no Health Connect install is needed. iOS returns the exported
+ * identifiers HealthKit resolves on this OS version; Android returns the
+ * Health Connect mapping. Empty on web.
+ */
+export function getSupportedTypes(): readonly string[] {
+  return supportedTypes(IDENTIFIER_CANDIDATES);
+}
+
+/**
+ * The subset of `identifiers` this platform cannot provide. Android
+ * `requestAuthorization` skips these silently; check before prompting so the
+ * UI can say "unavailable on this phone" instead of "no data".
+ */
+export function getUnsupportedTypes(identifiers: readonly string[]): string[] {
+  const supported = new Set(supportedTypes(identifiers));
+  return identifiers.filter((identifier) => !supported.has(identifier));
 }
 
 export async function getAuthorizationStatus(type: string): Promise<AuthorizationStatus> {
@@ -120,6 +200,7 @@ export async function queryQuantitySamples(
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -137,6 +218,7 @@ export async function queryCategorySamples(options: SampleQueryOptions): Promise
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -154,6 +236,7 @@ export async function queryWorkouts(options: WorkoutQueryOptions = {}): Promise<
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
     activityType: options.activityType,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -174,6 +257,7 @@ export async function queryElectrocardiograms(
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
     includeVoltage: options.includeVoltage ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -205,6 +289,7 @@ export async function queryClinicalRecords(
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -223,6 +308,7 @@ export async function queryAudiograms(
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -251,17 +337,7 @@ export async function queryWorkoutRoute(
   }));
 }
 
-function mapQuantitySample(sample: {
-  uuid: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  value: number;
-  unit: string;
-  sourceName?: string;
-  sourceId?: string;
-  metadata?: Record<string, string>;
-}) {
+function mapQuantitySample(sample: NativeQuantitySample): QuantitySample {
   return {
     ...sample,
     startDate: fromIso(sample.startDate),
@@ -277,6 +353,7 @@ export async function queryCorrelations(options: CorrelationQueryOptions): Promi
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -297,6 +374,7 @@ export async function queryHeartbeatSeries(
     limit: options.limit ?? HK_UNLIMITED,
     ascending: options.ascending ?? false,
     includeBeats: options.includeBeats ?? true,
+    ...sourceFilters(options),
   });
 
   return samples.map((sample) => ({
@@ -314,6 +392,7 @@ export async function queryStatistics(options: StatisticsQueryOptions): Promise<
     from: toOptionalIso(options.from),
     to: toOptionalIso(options.to),
     options: options.options ?? 0,
+    ...sourceFilters(options),
   });
 
   return {
@@ -340,6 +419,7 @@ export async function queryStatisticsCollection(
     hour: interval.hour ?? 0,
     minute: interval.minute ?? 0,
     second: interval.second ?? 0,
+    ...sourceFilters(options),
   });
 
   return results.map((stats) => ({
@@ -358,6 +438,7 @@ export async function queryAnchored(options: AnchoredQueryOptions): Promise<Anch
     to: toOptionalIso(options.to),
     limit: options.limit ?? HK_UNLIMITED,
     anchor: options.anchor ?? undefined,
+    ...sourceFilters(options),
   });
 
   return {
@@ -568,9 +649,14 @@ export function useHealthKitUpdates(): HealthUpdateEvent | null {
 
 const HealthKit = {
   isAvailable,
+  getSupportedTypes,
+  getUnsupportedTypes,
   requestAuthorization,
   getAuthorizationStatus,
   getRequestStatusForAuthorization,
+  getGrantedPermissions,
+  revokeAllPermissions,
+  requestPermissions,
   queryQuantitySamples,
   queryCategorySamples,
   queryWorkouts,

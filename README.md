@@ -77,7 +77,7 @@ npx expo run:android
 
 Enable the **HealthKit** capability on the App ID in the Apple Developer portal. The plugin writes the entitlement into the generated Xcode project; the capability still has to be allowed for that bundle ID.
 
-On Android, install [Health Connect](https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata) if the OS does not already include it (built-in on Android 14+). The plugin declares the Health Connect permissions and raises `minSdk` to 26.
+On Android, install [Health Connect](https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata) if the OS does not already include it (built-in on Android 14+). The plugin declares the Health Connect permissions (all mapped types by default; narrow with `healthConnectPermissions`) and raises `minSdk` to 26.
 
 ## ⚡️ Quick start
 
@@ -131,12 +131,19 @@ const heartRate = await HealthKit.queryQuantitySamples({
 | Method                                                  | Notes                                                                                            |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `isAvailable()`                                         | `true` on iOS when HealthKit is present, and on Android when Health Connect is installed         |
-| `requestAuthorization({ toRead, toShare })`             | Shows the system permission sheet (HealthKit or Health Connect)                                  |
+| `getSupportedTypes()`                                   | Identifiers this platform can provide. Static, no prompt. iOS: what HealthKit resolves on this OS; Android: the Health Connect mapping; web: `[]` |
+| `getUnsupportedTypes(identifiers)`                      | The subset of `identifiers` this platform cannot provide                                          |
+| `requestAuthorization({ toRead, toShare, includeBackgroundRead })` | Shows the system permission sheet (HealthKit or Health Connect). `includeBackgroundRead` adds Health Connect's `READ_HEALTH_DATA_IN_BACKGROUND` (Android only; needs the plugin's `isHealthConnectBackgroundReadEnabled`) |
 | `getAuthorizationStatus(type)`                          | iOS: reliable for **write** types. Android: reflects granted Health Connect read or write access |
 | `getRequestStatusForAuthorization({ toRead, toShare })` | Whether you still need to prompt                                                                 |
+| `getGrantedPermissions()`                               | Android: granted `android.permission.health.*` strings. iOS: identifiers this app may **write** — HealthKit does not disclose read grants |
+| `requestPermissions(permissions)`                       | Android: request raw `android.permission.health.*` strings, resolves with the granted subset. iOS: throws `ERR_HEALTHKIT_UNSUPPORTED` |
+| `revokeAllPermissions()`                                | Android: in-app "disconnect Health Connect". iOS: throws `ERR_HEALTHKIT_UNSUPPORTED` (HealthKit has no revoke) |
 
 
 On iOS, read authorization is intentionally opaque: `getAuthorizationStatus` returning `notDetermined` / `sharingDenied` does **not** mean the user blocked reads.
+
+`ERR_HEALTHKIT_UNSUPPORTED` is the iOS mirror of `ERR_HEALTH_CONNECT_UNSUPPORTED`: the method exists on both platforms so app code needs no `Platform.OS` fork, and the one backend that cannot do it says so.
 
 ### 📊 Samples and statistics
 
@@ -159,6 +166,34 @@ On iOS, read authorization is intentionally opaque: `getAuthorizationStatus` ret
 
 
 `limit` defaults to HealthKit's unlimited query. Dates accept `Date` or ISO-8601 strings. Units are HealthKit unit strings (`count`, `count/min`, `kcal`, `kg`, `m`, `%`, …) also exported as `Unit`.
+
+#### Source filters
+
+Every query above (except activity summaries and workout routes) accepts `sources` and `excludeSources`. Both take iOS bundle identifiers / Android package names; `'self'` in `excludeSources` is this app. Use it to skip your own writes when you sync:
+
+```ts
+const heartRate = await HealthKit.queryQuantitySamples({
+  type: HealthKit.QuantityType.heartRate,
+  unit: HealthKit.Unit.countPerMinute,
+  from: today,
+  limit: 100,
+  excludeSources: ['self'],
+});
+
+const watchOnly = await HealthKit.queryWorkouts({
+  sources: ['com.apple.health'],
+});
+```
+
+The filters run natively, **before `limit`**, on both platforms: `limit: 100` with `excludeSources: ['self']` returns the 100 newest samples that other apps wrote, not 100 rows minus yours. On iOS they compile to an `HKQuery.predicateForObjects(from:)` predicate; on Android `sources` is the request's `dataOriginFilter` and `excludeSources` is applied to each page before the limit is counted. `queryStatistics` / `queryStatisticsCollection` on Android support `sources` only; `excludeSources` there throws `ERR_HEALTH_CONNECT_UNSUPPORTED`. `queryAnchored` filters added samples; deletions carry no source and are always returned.
+
+#### Anchored sync
+
+`queryAnchored` returns `{ added, deleted, anchor }`. Store `anchor` and pass it back next time to receive only what changed.
+
+- **The anchor is an opaque token, not a timestamp.** On iOS it is an archived `HKQueryAnchor`; on Android it is a Health Connect changes token. It is not portable between platforms, between apps, or from another library — an anchor saved by `@kingstinct/react-native-healthkit` or `react-native-health-connect`, or an ISO date from a timestamp-based cursor, is not a valid token here. Persist it per platform and per type, and when migrating from another cursor start with `anchor: null` and dedupe by `uuid`.
+- **A stale or foreign token restarts the sync; it is not an error you can branch on.** iOS treats a string that is not base64 as "no anchor" and runs the initial fetch again (only a base64 string that is not an `HKQueryAnchor` archive rejects). Android does the same for a token Health Connect rejects or reports expired: it re-reads every sample in `from`/`to` and returns a fresh token, with `deleted` empty for that pass.
+- **Android's 30-day window applies twice.** Health Connect keeps its change log for 30 days, so a token older than that is expired and triggers the restart above — deletions made during the gap are lost, and additions are re-fetched. The restart's read is itself limited to the last 30 days unless the user granted `READ_HEALTH_DATA_HISTORY` (requested with every `toRead`). A user who does not open the app for a month therefore re-syncs the window rather than losing data, but only within what history access allows.
 
 ECG, activity rings, clinical records, audiograms, workout GPS routes, heartbeat series, and correlations are not quantity/category/workout samples. Request the matching identifier in `toRead`:
 
@@ -301,7 +336,17 @@ flowchart LR
   API --> Android["Android<br/>Health Connect"]
 ```
 
-Mapped types (steps, heart rate, sleep, workouts, weight, blood pressure, nutrition, …) use the **same method and identifier** on both platforms. Unmapped identifiers are skipped in Android `requestAuthorization`. Calling an Apple-only method on Android throws `ERR_HEALTH_CONNECT_UNSUPPORTED` instead of requiring `if (Platform.OS === 'ios')` on every query.
+Mapped types (steps, heart rate, sleep, workouts, weight, blood pressure, nutrition, …) use the **same method and identifier** on both platforms. Unmapped identifiers are skipped in Android `requestAuthorization`, so an unsupported type and an empty one look alike; ask first:
+
+```ts
+const missing = HealthKit.getUnsupportedTypes([
+  HealthKit.QuantityType.vo2Max,
+  HealthKit.QuantityType.appleExerciseTime,
+]);
+// Android: ['HKQuantityTypeIdentifierAppleExerciseTime'] — say "not on this phone", not "no data"
+```
+
+Calling an Apple-only method on Android throws `ERR_HEALTH_CONNECT_UNSUPPORTED` instead of requiring `if (Platform.OS === 'ios')` on every query.
 
 Hide Apple-only UI by catching that code:
 
@@ -351,11 +396,13 @@ These throw `ERR_HEALTH_CONNECT_UNSUPPORTED` on Android. Health Connect has no e
 | --- | --- | --- |
 | Backend | HealthKit | Health Connect (`connect-client` 1.1) |
 | `isAvailable()` | HealthKit present | Health Connect installed (built-in on Android 14+; otherwise the Health Connect app) |
-| Read permission | Apple does **not** disclose read grants | `getAuthorizationStatus` reflects granted Health Connect read or write |
+| Read permission | Apple does **not** disclose read grants; `getGrantedPermissions` lists write grants only | `getAuthorizationStatus` reflects granted Health Connect read or write; `getGrantedPermissions` returns the raw permission strings |
+| Revoke | None (`revokeAllPermissions` throws `ERR_HEALTHKIT_UNSUPPORTED`) | `revokeAllPermissions()` |
+| Background reads | Observer queries / background delivery | `requestAuthorization({ includeBackgroundRead: true })` plus the plugin's `isHealthConnectBackgroundReadEnabled` |
 | Unmapped types in `requestAuthorization` | Forwarded if HealthKit knows them | Skipped |
 | History window | Granted samples, any age | Often last **30 days** unless the user also grants history access (the SDK requests it) |
-| Anchored sync | `HKQueryAnchor` (opaque string) | Health Connect changes token (opaque string). Do not reuse an iOS anchor on Android |
-| HRV | SDNN | Mapped to Health Connect RMSSD on the same `heartRateVariabilitySDNN` identifier — not the same statistic |
+| Anchored sync | `HKQueryAnchor` (opaque string) | Health Connect changes token (opaque string). Do not reuse an iOS anchor on Android. Tokens expire after 30 days — see [Anchored sync](#anchored-sync) |
+| HRV | SDNN. Samples carry `statistic: 'sdnn'` | Mapped to Health Connect RMSSD on the same `heartRateVariabilitySDNN` identifier — not the same statistic. Samples carry `statistic: 'rmssd'`; branch on it before charting the two together |
 | Workout GPS | `queryWorkoutRoute` | Unsupported |
 | `minSdk` | iOS 16.4 | API 26 (plugin raises it) |
 
@@ -372,9 +419,19 @@ Do **not** fork mapped queries per platform. Fork only when you need different U
 | `isBackgroundDeliveryEnabled`     | `false`                                            | HealthKit background delivery entitlement |
 | `isClinicalDataEnabled`           | `false`                                            | `health-records` access                                         |
 | `healthConnectPrivacyPolicyUrl`   | —                                                  | Shown on the Health Connect permission rationale screen         |
+| `healthConnectPermissions`        | every permission the module maps (47, incl. `READ_HEALTH_DATA_HISTORY`) | Health Connect `uses-permission` entries to declare. `READ_STEPS` or `android.permission.health.READ_STEPS`. When set, **only** these are declared |
+| `isHealthConnectBackgroundReadEnabled` | `false`                                       | Declares `READ_HEALTH_DATA_IN_BACKGROUND` for `requestAuthorization({ includeBackgroundRead: true })` |
 
 
 The plugin also sets `android.minSdkVersion` to 26 (Health Connect’s floor) unless the project already uses a higher value.
+
+The plugin is the **only** place Health Connect permissions are declared; the module's own `AndroidManifest.xml` declares none. Play Console asks you to justify every declared Health Connect data type and the permission sheet shows the user the full list, so narrow it to what you query:
+
+```json
+["@appeeky/expo-healthkit", { "healthConnectPermissions": ["READ_STEPS", "READ_HEART_RATE", "READ_SLEEP", "READ_HEALTH_DATA_HISTORY"] }]
+```
+
+A type you query without declaring its permission is skipped at `requestAuthorization` and reads as empty. `HEALTH_CONNECT_PERMISSIONS` (exported from the plugin) is the default list.
 
 Set a permission string to `false` to skip writing that Info.plist key (if you manage it yourself).
 

@@ -12,6 +12,10 @@ class ExpoHealthKitModule extends NativeModule<ExpoHealthKitModuleEvents> {
     return false;
   }
 
+  getSupportedTypes(): string[] {
+    return [];
+  }
+
   async requestAuthorization(): Promise<boolean> {
     return unavailable();
   }
@@ -21,6 +25,18 @@ class ExpoHealthKitModule extends NativeModule<ExpoHealthKitModuleEvents> {
   }
 
   async getRequestStatusForAuthorization(): Promise<number> {
+    return unavailable();
+  }
+
+  async getGrantedPermissions(): Promise<string[]> {
+    return unavailable();
+  }
+
+  async revokeAllPermissions(): Promise<void> {
+    return unavailable();
+  }
+
+  async requestPermissions(): Promise<string[]> {
     return unavailable();
   }
 

@@ -17,8 +17,15 @@ const DEFAULT_CLINICAL = 'Allow $(PRODUCT_NAME) to read your clinical health rec
 const HEALTH_CONNECT_PACKAGE = 'com.google.android.apps.healthdata';
 const PRIVACY_POLICY_META = 'expo.modules.healthkit.HEALTH_CONNECT_PRIVACY_POLICY_URL';
 const HEALTH_CONNECT_MIN_SDK = 26;
+const HEALTH_CONNECT_PERMISSION_PREFIX = 'android.permission.health.';
+const HEALTH_CONNECT_BACKGROUND_READ = `${HEALTH_CONNECT_PERMISSION_PREFIX}READ_HEALTH_DATA_IN_BACKGROUND`;
 
-const HEALTH_CONNECT_PERMISSIONS = [
+/**
+ * Declared when `healthConnectPermissions` is not set: every permission the
+ * Kotlin mapping can request, plus history. The module's own manifest declares
+ * none, so this list (or the prop) is the single declaration point.
+ */
+export const HEALTH_CONNECT_PERMISSIONS = [
   'android.permission.health.READ_STEPS',
   'android.permission.health.WRITE_STEPS',
   'android.permission.health.READ_DISTANCE',
@@ -94,6 +101,44 @@ export interface ExpoHealthKitPluginProps {
    * Privacy policy URL shown from the Health Connect permission rationale screen.
    */
   healthConnectPrivacyPolicyUrl?: string;
+  /**
+   * Health Connect permissions to declare in the manifest, as `READ_STEPS` or
+   * `android.permission.health.READ_STEPS`. When set, ONLY these are declared;
+   * Play Console reviews every declared type, so narrow it to what you query.
+   * Default: `HEALTH_CONNECT_PERMISSIONS` (everything the module maps).
+   */
+  healthConnectPermissions?: string[];
+  /**
+   * Declares `android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND` so
+   * `requestAuthorization({ includeBackgroundRead: true })` can be granted.
+   */
+  isHealthConnectBackgroundReadEnabled?: boolean;
+}
+
+export function normalizeHealthConnectPermission(name: string): string {
+  return name.startsWith(HEALTH_CONNECT_PERMISSION_PREFIX)
+    ? name
+    : `${HEALTH_CONNECT_PERMISSION_PREFIX}${name}`;
+}
+
+/**
+ * The `uses-permission` list the plugin declares for the given props.
+ * Exported so it can be unit-tested without running the manifest mod.
+ */
+export function resolveHealthConnectPermissions(
+  props: Pick<
+    ExpoHealthKitPluginProps,
+    'healthConnectPermissions' | 'isHealthConnectBackgroundReadEnabled'
+  >
+): string[] {
+  const declared = Array.isArray(props.healthConnectPermissions)
+    ? props.healthConnectPermissions.map(normalizeHealthConnectPermission)
+    : HEALTH_CONNECT_PERMISSIONS;
+  const permissions = new Set(declared);
+  if (props.isHealthConnectBackgroundReadEnabled) {
+    permissions.add(HEALTH_CONNECT_BACKGROUND_READ);
+  }
+  return [...permissions];
 }
 
 const withHealthKitEntitlements: ConfigPlugin<ExpoHealthKitPluginProps> = (config, props = {}) => {
@@ -153,7 +198,10 @@ const withHealthConnectMinSdk: ConfigPlugin = (config) => {
 };
 
 const withHealthConnectManifest: ConfigPlugin<ExpoHealthKitPluginProps> = (config, props = {}) => {
-  config = AndroidConfig.Permissions.withPermissions(config, HEALTH_CONNECT_PERMISSIONS);
+  config = AndroidConfig.Permissions.withPermissions(
+    config,
+    resolveHealthConnectPermissions(props)
+  );
 
   return withAndroidManifest(config, (config) => {
     const manifest = config.modResults.manifest as typeof config.modResults.manifest & {

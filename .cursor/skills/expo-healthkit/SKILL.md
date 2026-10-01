@@ -43,7 +43,7 @@ npx expo install @appeeky/expo-healthkit
 }
 ```
 
-Optional plugin flags: `isBackgroundDeliveryEnabled`, `isClinicalDataEnabled`, `healthConnectPrivacyPolicyUrl`. Then `npx expo prebuild` / `npx expo run:ios` / `npx expo run:android`.
+Optional plugin flags: `isBackgroundDeliveryEnabled`, `isClinicalDataEnabled`, `healthConnectPrivacyPolicyUrl`, `healthConnectPermissions` (narrow the declared Health Connect `uses-permission` list — Play Console reviews every declared type), `isHealthConnectBackgroundReadEnabled`. Then `npx expo prebuild` / `npx expo run:ios` / `npx expo run:android`.
 
 ```ts
 import * as HealthKit from '@appeeky/expo-healthkit';
@@ -86,12 +86,18 @@ await HealthKit.requestAuthorization({
 - Request every type you will query or save. Missing `toRead` yields empty results, not a typed permission error.
 - `getAuthorizationStatus` is reliable for **write** on iOS. Apple does not disclose read grants. Empty data can mean no samples **or** denied read. Android Health Connect can report granted read or write access.
 - `getRequestStatusForAuthorization` tells you whether to show the system sheet again.
+- `getSupportedTypes()` / `getUnsupportedTypes(ids)` are static (no prompt). Android skips unmapped identifiers in `requestAuthorization`, so check before prompting and show "not on this phone" instead of "no data".
+- `getGrantedPermissions()` — Android: raw `android.permission.health.*` strings; iOS: write grants only. `requestPermissions(strings)` and `revokeAllPermissions()` are Android; on iOS they throw `ERR_HEALTHKIT_UNSUPPORTED`.
+- `requestAuthorization({ includeBackgroundRead: true })` adds Health Connect background reads (needs plugin `isHealthConnectBackgroundReadEnabled`); ignored on iOS.
 - Activity summaries are not writable. Do not put `ActivitySummaryType` in `toShare`.
 - App code should not `Platform.OS` fork per call. Use the same identifiers; catch unsupported APIs on Android.
 
 ## Query defaults
 
 - Dates: `Date` or ISO-8601. `limit` `0` / omitted = HealthKit unlimited. `ascending` default `false` (newest first).
+- `sources` / `excludeSources` (bundle ids / package names, `'self'` = this app) filter natively, **before** `limit`. Use `excludeSources: ['self']` on reads when the app also writes. Android statistics accept `sources` only.
+- `heartRateVariabilitySDNN` samples carry `statistic: 'sdnn'` (iOS) or `'rmssd'` (Android). Do not chart the two on one axis.
+- `queryAnchored` anchors are opaque and per-platform; a foreign or expired token restarts the sync (Android change tokens expire after 30 days).
 - Statistics: pass a `StatisticsOption` bitmask (`cumulativeSum` for steps; `discreteAverage` or `discreteMostRecent` for heart rate / weight). Combine with bitwise OR.
 - Cumulative totals use `queryStatistics`. Discrete series use `queryQuantitySamples`. Daily buckets use `queryStatisticsCollection` (`interval` default `{ day: 1 }`).
 - Height / weight: query **all-time** with `discreteMostRecent`. A tight `to: now` window often returns nothing.
