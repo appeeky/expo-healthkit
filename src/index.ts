@@ -449,6 +449,7 @@ export async function queryAnchored(options: AnchoredQueryOptions): Promise<Anch
     })),
     deleted: result.deleted,
     anchor: result.anchor ?? null,
+    hasMore: result.hasMore ?? false,
   };
 }
 

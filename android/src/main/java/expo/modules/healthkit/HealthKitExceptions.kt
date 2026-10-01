@@ -28,3 +28,9 @@ internal class EmptyCorrelationException :
 
 internal class HealthConnectUnsupportedException(feature: String) :
   CodedException("$feature is not available on Android Health Connect")
+
+internal class HealthConnectAnchorExpiredException :
+  CodedException("The anchor has expired. Start over without an anchor and reconcile: deletions since the anchor was issued are not reported")
+
+internal class InvalidAnchorException :
+  CodedException("Invalid anchor. Pass an anchor returned by queryAnchored on this platform")

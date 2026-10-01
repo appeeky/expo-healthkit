@@ -1,6 +1,7 @@
 package expo.modules.healthkit
 
 import android.content.Context
+import android.util.Base64
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.aggregate.AggregationResult
 import androidx.health.connect.client.changes.DeletionChange
@@ -55,6 +56,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
 import kotlin.reflect.KClass
+import org.json.JSONObject
 
 internal class HealthConnectService(
   private val context: Context,
@@ -309,43 +311,92 @@ internal class HealthConnectService(
     val type = requiredString(options, "type")
     val unit = options["unit"] as? String ?: ""
     val recordClass = HealthConnectMapping.recordClass(type) ?: unmappedType(type)
-    val anchor = options["anchor"] as? String
+    val limit = intValue(options["limit"])
     val sources = sourceFilter(options)
     val client = client()
-    if (anchor.isNullOrBlank()) {
-      val samples = quantitySamples(type, unit, timeFilter(options), intValue(options["limit"]), options["ascending"] as? Boolean ?: true, sources)
-      val token = client.getChangesToken(ChangesTokenRequest(setOf(recordClass)))
-      return mapOf("added" to samples, "deleted" to emptyList<Map<String, Any?>>(), "anchor" to token)
+    val cursor = AnchorCursor.decode(options["anchor"] as? String)
+      // No anchor: start a backfill. Take the changes token before the first
+      // read so anything written during the backfill shows up as a change.
+      ?: AnchorCursor(client.getChangesToken(ChangesTokenRequest(setOf(recordClass))), null, true)
+
+    if (cursor.backfill) {
+      return backfillPage(type, unit, recordClass, options, limit, sources, cursor)
     }
-    return try {
-      var token = requireNotNull(anchor)
-      val added = mutableListOf<Map<String, Any?>>()
-      val deleted = mutableListOf<Map<String, Any?>>()
-      while (true) {
-        val changes = client.getChanges(token)
-        if (changes.changesTokenExpired) {
-          val samples = quantitySamples(type, unit, timeFilter(options), intValue(options["limit"]), true, sources)
-          val fresh = client.getChangesToken(ChangesTokenRequest(setOf(recordClass)))
-          return mapOf("added" to samples, "deleted" to emptyList<Map<String, Any?>>(), "anchor" to fresh)
-        }
-        for (change in changes.changes) {
-          when (change) {
-            // Deletions carry no data origin, so they are never filtered.
-            is UpsertionChange -> if (sources.matches(change.record.metadata)) {
-              added += quantitySamplesFromRecord(type, unit, change.record)
-            }
-            is DeletionChange -> deleted += mapOf("uuid" to change.recordId, "type" to type)
-          }
-        }
-        token = changes.nextChangesToken
-        if (!changes.hasMore) break
+
+    var token = cursor.changesToken
+    val added = mutableListOf<Map<String, Any?>>()
+    val deleted = mutableListOf<Map<String, Any?>>()
+    var hasMore: Boolean
+    do {
+      val changes = client.getChanges(token)
+      if (changes.changesTokenExpired) {
+        throw HealthConnectAnchorExpiredException()
       }
-      mapOf("added" to added, "deleted" to deleted, "anchor" to token)
-    } catch (_: Exception) {
-      val samples = quantitySamples(type, unit, timeFilter(options), intValue(options["limit"]), true, sources)
-      val token = client.getChangesToken(ChangesTokenRequest(setOf(recordClass)))
-      mapOf("added" to samples, "deleted" to emptyList<Map<String, Any?>>(), "anchor" to token)
+      for (change in changes.changes) {
+        when (change) {
+          // Deletions carry no data origin, so they are never filtered.
+          is UpsertionChange -> if (sources.matches(change.record.metadata)) {
+            added += quantitySamplesFromRecord(type, unit, change.record)
+          }
+          is DeletionChange -> deleted += mapOf("uuid" to change.recordId, "type" to type)
+        }
+      }
+      token = changes.nextChangesToken
+      hasMore = changes.hasMore
+      // Health Connect pages are atomic, so `limit` is reached at a page boundary.
+    } while (hasMore && (limit <= 0 || added.size + deleted.size < limit))
+    return mapOf(
+      "added" to added,
+      "deleted" to deleted,
+      "anchor" to AnchorCursor(token, null, false).encode(),
+      "hasMore" to hasMore
+    )
+  }
+
+  /**
+   * One page of the initial read. `limit` bounds records per page (a heart-rate
+   * record can expand to many samples); 0 reads every page in one call.
+   */
+  private suspend fun backfillPage(
+    type: String,
+    unit: String,
+    recordClass: KClass<out Record>,
+    options: Map<String, Any?>,
+    limit: Int,
+    sources: SourceFilter,
+    cursor: AnchorCursor
+  ): Map<String, Any?> {
+    val pageSize = if (limit > 0) minOf(limit, 5000) else 1000
+    val records = mutableListOf<Record>()
+    var pageToken = cursor.pageToken
+    do {
+      val response = client().readRecords(
+        ReadRecordsRequest(
+          recordType = recordClass,
+          timeRangeFilter = timeFilter(options),
+          dataOriginFilter = sources.origins,
+          ascendingOrder = options["ascending"] as? Boolean ?: true,
+          pageSize = pageSize,
+          pageToken = pageToken
+        )
+      )
+      records += response.records.filter { sources.matches(it.metadata) }
+      pageToken = response.pageToken
+    } while (limit <= 0 && pageToken != null)
+
+    val added = if (type == HealthConnectMapping.BASAL_ENERGY) {
+      emptyList()
+    } else {
+      records.flatMap { record -> quantitySamplesFromRecord(type, unit, record) }
     }
+    return mapOf(
+      "added" to added,
+      "deleted" to emptyList<Map<String, Any?>>(),
+      "anchor" to AnchorCursor(cursor.changesToken, pageToken, pageToken != null).encode(),
+      // Also true on the last backfill page: changes written during the backfill
+      // are still pending on the changes token.
+      "hasMore" to true
+    )
   }
 
   suspend fun saveQuantitySample(input: Map<String, Any?>): String {
@@ -1182,5 +1233,42 @@ private data class SourceFilter(
 
   companion object {
     val NONE = SourceFilter(emptySet(), emptySet())
+  }
+}
+
+/**
+ * Android anchor. While `backfill` is true the next call continues the initial
+ * read from `pageToken`; afterwards it reads changes from `changesToken`, which
+ * was taken before the backfill started. Plain changes tokens from older
+ * versions still decode.
+ */
+private data class AnchorCursor(
+  val changesToken: String,
+  val pageToken: String?,
+  val backfill: Boolean
+) {
+  fun encode(): String {
+    val json = JSONObject().put("c", changesToken).put("b", backfill)
+    pageToken?.let { json.put("p", it) }
+    return PREFIX + Base64.encodeToString(json.toString().toByteArray(), Base64.NO_WRAP or Base64.URL_SAFE)
+  }
+
+  companion object {
+    private const val PREFIX = "hc1:"
+
+    fun decode(anchor: String?): AnchorCursor? {
+      if (anchor.isNullOrBlank()) return null
+      if (!anchor.startsWith(PREFIX)) return AnchorCursor(anchor, null, false)
+      val json = try {
+        JSONObject(String(Base64.decode(anchor.removePrefix(PREFIX), Base64.NO_WRAP or Base64.URL_SAFE)))
+      } catch (_: Exception) {
+        throw InvalidAnchorException()
+      }
+      return AnchorCursor(
+        json.optString("c").ifEmpty { throw InvalidAnchorException() },
+        json.optString("p").ifEmpty { null },
+        json.optBoolean("b")
+      )
+    }
   }
 }
