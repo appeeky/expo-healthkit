@@ -1,3 +1,10 @@
+## [0.2.1](https://github.com/appeeky/expo-healthkit/compare/v0.2.0...v0.2.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **plugin:** stop adding invalid 'healthkit' to UIBackgroundModes ([#5](https://github.com/appeeky/expo-healthkit/issues/5)) ([4f44bd6](https://github.com/appeeky/expo-healthkit/commit/4f44bd62c10526726bb0941bfa7529edcee14acf)), closes [#4](https://github.com/appeeky/expo-healthkit/issues/4)
+
 # [0.2.0](https://github.com/appeeky/expo-healthkit/compare/v0.1.1...v0.2.0) (2026-09-09)
 
 
