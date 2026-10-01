@@ -1,3 +1,10 @@
+# [0.4.0](https://github.com/appeeky/expo-healthkit/compare/v0.3.0...v0.4.0) (2026-10-01)
+
+
+### Features
+
+* **android:** page anchored sync and surface expired anchors ([#7](https://github.com/appeeky/expo-healthkit/issues/7)) ([89d5d7e](https://github.com/appeeky/expo-healthkit/commit/89d5d7e2471f1c8f3af39dc1a0d1afe58168918a)), closes [#6](https://github.com/appeeky/expo-healthkit/issues/6)
+
 # [0.3.0](https://github.com/appeeky/expo-healthkit/compare/v0.2.1...v0.3.0) (2026-10-01)
 
 
