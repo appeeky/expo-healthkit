@@ -9,7 +9,7 @@ Canonical implementations: `src/index.ts`, `src/types.ts`, `src/identifiers.ts`.
 | `healthSharePermission` | share usage string | `NSHealthShareUsageDescription`. `false` skips the key |
 | `healthUpdatePermission` | update usage string | `NSHealthUpdateUsageDescription`. `false` skips the key |
 | `healthClinicalRecordsPermission` | clinical usage string | Used when `isClinicalDataEnabled` |
-| `isBackgroundDeliveryEnabled` | `false` | HealthKit background-delivery entitlement plus `UIBackgroundModes: healthkit` |
+| `isBackgroundDeliveryEnabled` | `false` | HealthKit background-delivery entitlement |
 | `isClinicalDataEnabled` | `false` | `com.apple.developer.healthkit.access = ["health-records"]` |
 | `healthConnectPrivacyPolicyUrl` | — | Health Connect rationale activity metadata |
 

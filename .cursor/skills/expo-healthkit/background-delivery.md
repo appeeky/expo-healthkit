@@ -20,7 +20,7 @@ Verified on device: killed app relaunched ~10 s after a Heart Rate sample was ad
    ["@appeeky/expo-healthkit", { "isBackgroundDeliveryEnabled": true }]
    ```
 
-   Adds `com.apple.developer.healthkit.background-delivery` and `UIBackgroundModes: ["healthkit"]`. Rebuild after changing it (`npx expo prebuild` / `npx expo run:ios`).
+   Adds `com.apple.developer.healthkit.background-delivery`. Rebuild after changing it (`npx expo prebuild` / `npx expo run:ios`).
 
 2. HealthKit capability enabled on the App ID (Apple Developer portal) with **Background Delivery** checked.
 
