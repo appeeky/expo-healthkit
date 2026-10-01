@@ -544,7 +544,9 @@ internal class HealthConnectService(
       return 1
     }
     val filter = timeFilter(options)
-    val existing = readAll(recordClass, filter, true, 0)
+    // Health Connect only lets an app delete what it wrote, and one foreign id
+    // fails the whole batch, so only collect this app's records.
+    val existing = readAll(recordClass, filter, true, 0, SourceFilter(setOf(context.packageName), emptySet()))
     if (existing.isEmpty()) {
       return 0
     }
