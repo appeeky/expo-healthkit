@@ -21,7 +21,7 @@ jobs:
       - name: Verify npm pack contents
         run: |
           set -euo pipefail
-          tarball="$(npm pack --ignore-scripts --loglevel=error)"
+          tarball="$(npm pack --ignore-scripts --loglevel=error | tail -n1)"
           tar -tzf "$tarball" | sort > packed.txt
           grep -qx 'package/build/index.js' packed.txt
           grep -qx 'package/build/index.d.ts' packed.txt
