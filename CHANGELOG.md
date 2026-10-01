@@ -1,3 +1,10 @@
+## [0.4.1](https://github.com/appeeky/expo-healthkit/compare/v0.4.0...v0.4.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **android:** only delete this app's records in a deleteObjects range ([#10](https://github.com/appeeky/expo-healthkit/issues/10)) ([71acaef](https://github.com/appeeky/expo-healthkit/commit/71acaef9431f190035db223a60e5ad82ffd02663))
+
 # [0.4.0](https://github.com/appeeky/expo-healthkit/compare/v0.3.0...v0.4.0) (2026-10-01)
 
 
