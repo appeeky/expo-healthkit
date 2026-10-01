@@ -58,7 +58,7 @@ queryAnchored({ type, unit?, from?, to?, limit?, anchor?, sources?, excludeSourc
 
 `Statistics`: `startDate`, `endDate`, `unit`, optional `sum`, `min`, `max`, `average`, `mostRecent`.
 
-`AnchoredQueryResult`: `{ added, deleted, anchor }`. Persist `anchor` and pass it back. It is opaque and per-platform, not a timestamp; a token from another library or an expired Android changes token (30 days) restarts the sync instead of erroring.
+`AnchoredQueryResult`: `{ added, deleted, anchor, hasMore }`. Persist `anchor` after applying the page and call again while `hasMore`. It is opaque and per-platform, not a timestamp. Android pages the first sync, throws `ERR_HEALTH_CONNECT_ANCHOR_EXPIRED` when the changes token expired (30 days; restart with no anchor and reconcile) and `ERR_INVALID_ANCHOR` for a malformed one.
 
 `StatisticsOption` bitmask: `discreteAverage` 1, `discreteMin` 2, `discreteMax` 4, `cumulativeSum` 8, `discreteMostRecent` 32.
 

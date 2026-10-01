@@ -229,15 +229,22 @@ const series = await HealthKit.queryHeartbeatSeries({
 ## Anchored sync
 
 ```ts
-let anchor: string | null = null;
+let anchor: string | null = await loadAnchor();
+let hasMore = true;
 
-const page = await HealthKit.queryAnchored({
-  type: HealthKit.QuantityType.heartRate,
-  unit: HealthKit.Unit.countPerMinute,
-  anchor,
-});
-anchor = page.anchor;
-// persist anchor; apply page.added / page.deleted
+while (hasMore) {
+  const page = await HealthKit.queryAnchored({
+    type: HealthKit.QuantityType.heartRate,
+    unit: HealthKit.Unit.countPerMinute,
+    limit: 500,
+    anchor,
+  });
+  await applyPage(page.added, page.deleted); // upsert added by uuid
+  anchor = page.anchor;
+  hasMore = page.hasMore;
+  await saveAnchor(anchor); // after the page is applied
+}
+// Android: ERR_HEALTH_CONNECT_ANCHOR_EXPIRED → restart with anchor null and reconcile
 ```
 
 ## Background delivery (iOS)

@@ -343,6 +343,11 @@ export interface AnchoredQueryResult {
   added: QuantitySample[];
   deleted: DeletedSample[];
   anchor: string | null;
+  /**
+   * More results are pending: persist `anchor`, then call again with it. Only
+   * meaningful with a `limit`; the follow-up page may be empty.
+   */
+  hasMore: boolean;
 }
 
 export interface HealthUpdateEvent {
@@ -522,6 +527,7 @@ export interface NativeAnchoredQueryResult {
   added: NativeQuantitySample[];
   deleted: NativeDeletedSample[];
   anchor?: string;
+  hasMore?: boolean;
 }
 
 export interface NativeDateRangeQueryOptions extends NativeSourceFilterOptions {

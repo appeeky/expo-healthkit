@@ -97,7 +97,7 @@ await HealthKit.requestAuthorization({
 - Dates: `Date` or ISO-8601. `limit` `0` / omitted = HealthKit unlimited. `ascending` default `false` (newest first).
 - `sources` / `excludeSources` (bundle ids / package names, `'self'` = this app) filter natively, **before** `limit`. Use `excludeSources: ['self']` on reads when the app also writes. Android statistics accept `sources` only.
 - `heartRateVariabilitySDNN` samples carry `statistic: 'sdnn'` (iOS) or `'rmssd'` (Android). Do not chart the two on one axis.
-- `queryAnchored` anchors are opaque and per-platform; a foreign or expired token restarts the sync (Android change tokens expire after 30 days).
+- `queryAnchored` anchors are opaque and per-platform. Loop while `hasMore`, persisting the anchor after each applied page. On Android an expired changes token (30 days) throws `ERR_HEALTH_CONNECT_ANCHOR_EXPIRED`: restart with no anchor and reconcile.
 - Statistics: pass a `StatisticsOption` bitmask (`cumulativeSum` for steps; `discreteAverage` or `discreteMostRecent` for heart rate / weight). Combine with bitwise OR.
 - Cumulative totals use `queryStatistics`. Discrete series use `queryQuantitySamples`. Daily buckets use `queryStatisticsCollection` (`interval` default `{ day: 1 }`).
 - Height / weight: query **all-time** with `discreteMostRecent`. A tight `to: now` window often returns nothing.

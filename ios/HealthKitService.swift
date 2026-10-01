@@ -280,9 +280,13 @@ internal final class HealthKitService {
       ["uuid": item.uuid.uuidString]
     }
 
+    // HealthKit does not report whether more results remain; a full page means
+    // there may be. The follow-up call then comes back short (possibly empty).
+    let fetched = result.added.count + result.deleted.count
     var payload: [String: Any] = [
       "added": added,
-      "deleted": deleted
+      "deleted": deleted,
+      "hasMore": options.limit > 0 && fetched >= options.limit
     ]
     if let encoded = try HealthKitIdentifiers.encodeAnchor(result.anchor) {
       payload["anchor"] = encoded
