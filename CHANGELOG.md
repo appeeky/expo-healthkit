@@ -1,3 +1,10 @@
+# [0.3.0](https://github.com/appeeky/expo-healthkit/compare/v0.2.1...v0.3.0) (2026-10-01)
+
+
+### Features
+
+* source filters, HRV statistic marker, getSupportedTypes, Android permission surface, configurable plugin permissions ([#3](https://github.com/appeeky/expo-healthkit/issues/3)) ([0013f31](https://github.com/appeeky/expo-healthkit/commit/0013f3138ff4dee23584e3d7fc335be558de8273))
+
 ## [0.2.1](https://github.com/appeeky/expo-healthkit/compare/v0.2.0...v0.2.1) (2026-10-01)
 
 
