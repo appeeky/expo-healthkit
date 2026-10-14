@@ -100,10 +100,12 @@ internal object HealthConnectNutrition {
     startOffset: ZoneOffset?,
     endOffset: ZoneOffset?,
     metadata: Metadata,
-    values: Map<String, Double>
+    values: Map<String, Double>,
+    name: String? = null
   ): NutritionRecord {
     fun mass(id: String) = values[id]?.let { Mass.kilograms(it) }
     return NutritionRecord(
+      name = name,
       startTime = start,
       startZoneOffset = startOffset,
       endTime = end,

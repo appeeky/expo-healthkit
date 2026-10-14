@@ -57,6 +57,9 @@ internal object HealthConnectMapping {
   const val BLOOD_PRESSURE = "HKCorrelationTypeIdentifierBloodPressure"
   const val FOOD = "HKCorrelationTypeIdentifierFood"
 
+  /** `HKMetadataKeyFoodType`; maps to `NutritionRecord.name`. */
+  const val FOOD_TYPE_METADATA_KEY = "HKFoodType"
+
   /**
    * Every identifier `recordClass` resolves by name. Any
    * `HKQuantityTypeIdentifierDietary*` identifier also resolves (to
