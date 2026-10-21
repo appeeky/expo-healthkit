@@ -33,6 +33,7 @@ jest.mock('../ExpoHealthKitModule', () => ({
     })),
     queryStatisticsCollection: jest.fn(async () => []),
     queryAnchored: jest.fn(async () => ({ added: [], deleted: [] })),
+    saveCorrelation: jest.fn(async () => 'correlation-id'),
   },
 }));
 
@@ -237,6 +238,25 @@ describe('permissions', () => {
   it('revokeAllPermissions resolves to void', async () => {
     await expect(HealthKit.revokeAllPermissions()).resolves.toBeUndefined();
     expect(mockNative.revokeAllPermissions).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('saveCorrelation', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('sends an empty metadata map for objects without metadata', async () => {
+    await HealthKit.saveCorrelation({
+      type: HealthKit.CorrelationType.food,
+      startDate: new Date('2024-01-15T12:00:00.000Z'),
+      objects: [
+        { type: 'HKQuantityTypeIdentifierDietaryEnergyConsumed', unit: 'kcal', value: 520 },
+      ],
+      metadata: { HKFoodType: 'Chicken Tikka' },
+    });
+    const { objects } = lastCall(mockNative.saveCorrelation) as {
+      objects: Record<string, unknown>[];
+    };
+    expect(objects[0].metadata).toEqual({});
   });
 });
 

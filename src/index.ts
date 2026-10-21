@@ -507,7 +507,8 @@ export async function saveCorrelation(correlation: CorrelationInput): Promise<st
         object.endDate ?? object.startDate ?? correlation.startDate,
         object.endDate ?? correlation.endDate
       ),
-      metadata: object.metadata,
+      // Health Connect's bridge rejects a nested undefined, so default to an empty map.
+      metadata: object.metadata ?? {},
     })),
     metadata: correlation.metadata,
   });
