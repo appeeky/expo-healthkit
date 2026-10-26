@@ -1,3 +1,11 @@
+## [0.4.2](https://github.com/appeeky/expo-healthkit/compare/v0.4.1...v0.4.2) (2026-10-26)
+
+
+### Bug Fixes
+
+* **android:** default correlation object metadata to an empty map ([#14](https://github.com/appeeky/expo-healthkit/issues/14)) ([d8e98e5](https://github.com/appeeky/expo-healthkit/commit/d8e98e588a357fc947f9ca903cee702d80ba0139))
+* **android:** map HKFoodType to NutritionRecord.name ([#13](https://github.com/appeeky/expo-healthkit/issues/13)) ([d75556f](https://github.com/appeeky/expo-healthkit/commit/d75556f1abf93e3d97090e5e0550d5b2753888c6))
+
 ## [0.4.1](https://github.com/appeeky/expo-healthkit/compare/v0.4.0...v0.4.1) (2026-10-01)
 
 
