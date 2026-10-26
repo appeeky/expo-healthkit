@@ -382,7 +382,7 @@ try {
 | Heart | `heartRate`, `restingHeartRate`, `heartRateVariabilitySDNN`, `vo2Max`, `oxygenSaturation`, `respiratoryRate` |
 | Body | `bodyMass`, `height`, `bodyFatPercentage`, `leanBodyMass`, `bodyTemperature`, `bloodGlucose` |
 | Blood pressure | `CorrelationType.bloodPressure` plus systolic / diastolic quantities |
-| Nutrition | `CorrelationType.food`, `dietaryWater`, other `HKQuantityTypeIdentifierDietary*` types |
+| Nutrition | `CorrelationType.food`, `dietaryWater`, other `HKQuantityTypeIdentifierDietary*` types. A food correlation's `HKFoodType` metadata maps to `NutritionRecord.name` |
 | Sleep | `CategoryType.sleepAnalysis` |
 | Workouts | `queryWorkouts` / `saveWorkout` (`WorkoutActivityType` mapped onto Health Connect exercise types) |
 | Aggregates | `queryStatistics`, `queryStatisticsCollection`, `queryAnchored` |

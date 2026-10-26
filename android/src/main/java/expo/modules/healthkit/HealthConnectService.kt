@@ -234,7 +234,8 @@ internal class HealthConnectService(
             }
             quantitySample(record.metadata, identifier, record.startTime, record.endTime, value, unit)
           }
-          correlation(record.metadata, type, record.startTime, record.endTime, objects)
+          val foodMetadata = record.name?.let { mapOf(HealthConnectMapping.FOOD_TYPE_METADATA_KEY to it) }
+          correlation(record.metadata, type, record.startTime, record.endTime, objects, foodMetadata)
         }
       }
       else -> unmappedType(type)
@@ -526,7 +527,16 @@ internal class HealthConnectService(
           values[identifier] = HealthConnectUnits.toCanonical(value, unit, HealthConnectMapping.quantityKind(identifier))
         }
         val range = ensureRange(start, end)
-        HealthConnectNutrition.build(range.first, range.second, zoneOffset(range.first), zoneOffset(range.second), metadata(), values)
+        val name = (input["metadata"] as? Map<*, *>)?.get(HealthConnectMapping.FOOD_TYPE_METADATA_KEY) as? String
+        HealthConnectNutrition.build(
+          range.first,
+          range.second,
+          zoneOffset(range.first),
+          zoneOffset(range.second),
+          metadata(),
+          values,
+          name = name?.takeIf { it.isNotBlank() }
+        )
       }
       else -> unmappedType(type)
     }
@@ -1100,16 +1110,18 @@ internal class HealthConnectService(
     type: String,
     start: Instant,
     end: Instant,
-    objects: List<Map<String, Any?>>
-  ): Map<String, Any?> = mapOf(
-    "uuid" to metadata.id,
-    "type" to type,
-    "startDate" to iso(start),
-    "endDate" to iso(end),
-    "objects" to objects,
-    "sourceName" to metadata.dataOrigin.packageName,
-    "sourceId" to metadata.dataOrigin.packageName
-  )
+    objects: List<Map<String, Any?>>,
+    extraMetadata: Map<String, String>? = null
+  ): Map<String, Any?> = buildMap<String, Any?> {
+    put("uuid", metadata.id)
+    put("type", type)
+    put("startDate", iso(start))
+    put("endDate", iso(end))
+    put("objects", objects)
+    put("sourceName", metadata.dataOrigin.packageName)
+    put("sourceId", metadata.dataOrigin.packageName)
+    if (!extraMetadata.isNullOrEmpty()) put("metadata", extraMetadata)
+  }
 
   private fun client(): HealthConnectClient = HealthConnectClient.getOrCreate(context)
 
